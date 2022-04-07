@@ -159,11 +159,10 @@ function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = noth
     if isnothing(textcolor)
         textcolor = color
     end
-    raw = g.data
     centers = geometry.cell_centroids
     coord_range(i) = maximum(centers[i, :]) - minimum(centers[i, :])
 
-    if size(raw.cells.centroids, 2) == 3
+    if size(centers, 1) == 3
         z = centers[3, :]
     else
         z = [0.0, 1.0]
@@ -201,6 +200,10 @@ function well_cells_for_plot(w::Dict)
         wc = [wc]
     end
     return vec(Int64.(wc))
+end
+
+function well_cells_for_plot(w)
+    return w.perforations.reservoir
 end
 
 export plot_well_results
@@ -369,13 +372,19 @@ function plot_mesh!(ax, m; color = :lightblue, kwarg...)
     return f
 end
 
-function plot_cell_data(m, data; kwarg...)
+function plot_cell_data(m, data; colorbar = :vertical, kwarg...)
     fig, ax = basic_3d_figure()
     p = plot_cell_data!(ax, m, data; kwarg...)
+    if !isnothing(colorbar)
+        if colorbar == :vertical
+            Colorbar(fig[2, 1], p, vertical = false)
+        else
+            Colorbar(fig[1, 2], p, vertical = true)
+        end
+    end
     display(fig)
     return (fig, ax, p)
 end
-
 
 function plot_cell_data!(ax, m, data, kwarg...)
     pts, tri, mapper = triangulate_outer_surface(m)
