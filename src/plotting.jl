@@ -8,13 +8,15 @@ function plot_reservoir(g, states; wells = nothing, kwarg...)
     end
     fig, ax = plot_interactive(g, states; kwarg...)
     if !isnothing(wells)
+        # Precompute geometry
+        geo = tpfv_geometry(g)
         for w in wells
             if w["sign"] > 0
                 c = :midnightblue
             else
                 c = :firebrick
             end
-            plot_well!(ax, g, w, color = c)
+            plot_well!(ax, g, w, color = c, geometry = geo)
         end
     end
     return (fig, ax)
@@ -153,15 +155,16 @@ unpack(x, ix) = x[ix, :]
 unpack(x::AbstractVector, ix) = x
 
 
-function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, linewidth = 5, top_factor = 0.2, textscale = 2.5e-2, kwarg...)
+function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = nothing, linewidth = 5, top_factor = 0.2, textscale = 2.5e-2, geometry = tpfv_geometry(g), kwarg...)
     if isnothing(textcolor)
         textcolor = color
     end
     raw = g.data
-    coord_range(i) = maximum(raw.cells.centroids[:, i]) - minimum(raw.cells.centroids[:, i])
+    centers = geometry.cell_centroids
+    coord_range(i) = maximum(centers[i, :]) - minimum(centers[i, :])
 
     if size(raw.cells.centroids, 2) == 3
-        z = raw.cells.centroids[:, 3]
+        z = centers[3, :]
     else
         z = [0.0, 1.0]
     end
@@ -175,20 +178,29 @@ function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, linewidth =
     rng = top - bottom
     s = top + top_factor*rng
 
+    c = well_cells_for_plot(w)
+    pts = centers[:, [c[1], c...]]
+    if size(pts, 1) == 2
+        # 2D grid, add some zeros to make logic work
+        pts = vcat(pts, zeros(1, size(pts, 2)))
+    end
+    pts[3, 1] = s
+
+    l = pts[:, 1]
+    text!(well_name_for_plot(w, name), position = Tuple([l[1], l[2], -l[3]]), space = :data, color = textcolor, align = (:center, :baseline), textsize = textsize)
+    lines!(ax, vec(pts[1, :]), vec(pts[2, :]), -vec(pts[3, :]), linewidth = linewidth, color = color, kwarg...)
+end
+
+well_name_for_plot(w::Dict, ::Nothing) = w["name"]
+well_name_for_plot(w, s::String) = s
+well_name_for_plot(w, s::Nothing) = ""
+
+function well_cells_for_plot(w::Dict)
     wc = w["cells"]
     if !isa(wc, AbstractArray)
         wc = [wc]
     end
-    c = vec(Int64.(wc))
-    pts = raw.cells.centroids[[c[1], c...], :]
-    if size(pts, 2) == 2
-        pts = hcat(pts, zeros(size(pts, 1)))
-    end
-    pts[1, 3] = s
-
-    l = pts[1, :]
-    text!(w["name"], position = Tuple([l[1], l[2], -l[3]]), space = :data, color = textcolor, align = (:center, :baseline), textsize = textsize)
-    lines!(ax, vec(pts[:, 1]), vec(pts[:, 2]), -vec(pts[:, 3]), linewidth = linewidth, color = color, kwarg...)
+    return vec(Int64.(wc))
 end
 
 export plot_well_results
@@ -336,15 +348,36 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     return fig
 end
 
-export plot_mesh, plot_cell_data
-function plot_mesh(m; color = :lightblue, kwarg...)
-    pts, tri, mapper = triangulate_outer_surface(m)
-    f = mesh(pts, tri; color = color, kwarg...)
-    display(f)
+function basic_3d_figure()
+    fig = Figure()
+    ax = Axis3(fig[1, 1])
+    return (fig, ax)
 end
 
-function plot_cell_data(m, data, kwarg...)
+export plot_mesh, plot_mesh!, plot_cell_data
+
+function plot_mesh(m; kwarg...)
+    fig, ax = basic_3d_figure()
+    p = plot_mesh!(ax, m; kwarg...)
+    display(fig)
+    return (fig, ax, p)
+end
+
+function plot_mesh!(ax, m; color = :lightblue, kwarg...)
     pts, tri, mapper = triangulate_outer_surface(m)
-    f = mesh(pts, tri; color = mapper.Cells(data), kwarg...)
-    display(f)
+    f = mesh!(ax, pts, tri; color = color, kwarg...)
+    return f
+end
+
+function plot_cell_data(m, data; kwarg...)
+    fig, ax = basic_3d_figure()
+    p = plot_cell_data!(ax, m, data; kwarg...)
+    display(fig)
+    return (fig, ax, p)
+end
+
+
+function plot_cell_data!(ax, m, data, kwarg...)
+    pts, tri, mapper = triangulate_outer_surface(m)
+    return mesh!(ax, pts, tri; color = mapper.Cells(data), kwarg...)
 end
