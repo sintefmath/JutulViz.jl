@@ -335,3 +335,16 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
 
     return fig
 end
+
+export plot_mesh, plot_cell_data
+function plot_mesh(m; color = :lightblue, kwarg...)
+    pts, tri, mapper = triangulate_outer_surface(m)
+    f = mesh(pts, tri; color = color, kwarg...)
+    display(f)
+end
+
+function plot_cell_data(m, data, kwarg...)
+    pts, tri, mapper = triangulate_outer_surface(m)
+    f = mesh(pts, tri; color = mapper.Cells(data), kwarg...)
+    display(f)
+end
