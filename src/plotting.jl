@@ -192,7 +192,7 @@ end
 
 well_name_for_plot(w::Dict, ::Nothing) = w["name"]
 well_name_for_plot(w, s::String) = s
-well_name_for_plot(w, s::Nothing) = ""
+well_name_for_plot(w, s::Nothing) = String(w.name)
 
 function well_cells_for_plot(w::Dict)
     wc = w["cells"]
