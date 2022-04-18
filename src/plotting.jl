@@ -375,7 +375,7 @@ end
 function plot_cell_data(m, data; colorbar = :vertical, kwarg...)
     fig, ax = basic_3d_figure()
     p = plot_cell_data!(ax, m, data; kwarg...)
-    if !isnothing(colorbar)
+    if !isnothing(colorbar) && maximum(data) != minimum(data)
         if colorbar == :vertical
             Colorbar(fig[2, 1], p, vertical = false)
         else
