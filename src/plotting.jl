@@ -250,7 +250,13 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
         response_ix[] = val
         autolimits!(ax)
     end
-    fig[2, 2:3] = hgrid!(
+    use_two_cols = ndata > 6
+    if use_two_cols
+        right_block = 2:3
+    else
+        right_block = 2:2
+    end
+    fig[2, right_block] = hgrid!(
         type_menu)
 
     b_xlim = Button(fig, label = "Reset x")
@@ -309,9 +315,14 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     tmp = hcat(toggles, labels)
     bgrid = tmp
     N = size(bgrid, 1)
-    M = div(N, 2, RoundUp)
-    fig[1, 2] = grid!(bgrid[1:M, :], tellheight = false)
-    fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = false)
+
+    if use_two_cols
+        M = div(N, 2, RoundUp)
+        fig[1, 2] = grid!(bgrid[1:M, :], tellheight = false)
+        fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = false)
+    else
+        fig[1, 2] = grid!(bgrid, tellheight = false)
+    end
 
     lineh = []
     for dix = 1:ndata
