@@ -243,6 +243,8 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     responses = collect(keys(wd[first(wells)]))
     respstr = [String(x) for x in responses]
     response_ix = Observable(1)
+    is_accum = Observable(false)
+    is_abs = Observable(false)
     type_menu = Menu(fig, options = respstr, prompt = respstr[1])
 
     on(type_menu.selection) do s
@@ -267,20 +269,34 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     on(b_ylim.clicks) do n
         reset_limits!(ax; xauto = false, yauto = true)
     end
+    toggle_abs = Toggle(fig, active = false)
+    connect!(is_abs, toggle_abs.active)
+    toggle_accum = Toggle(fig, active = false)
+    connect!(is_accum, toggle_accum.active)
+
     buttongrid = GridLayout(tellwidth = false)
-    buttongrid[1, 1] = b_xlim
-    buttongrid[1, 2] = b_ylim
-
-
+    buttongrid[1, 1] = toggle_abs
+    buttongrid[1, 2] = Label(fig, "Absolute")
+    buttongrid[1, 3] = toggle_accum
+    buttongrid[1, 4] = Label(fig, "Cumulative")
+    buttongrid[1, 5] = b_xlim
+    buttongrid[1, 6] = b_ylim
 
     # Lay out and do plotting
     fig[2, 1] = buttongrid
-    function get_data(wix, rix, dataix)
+    function get_data(time, wix, rix, dataix, use_accum, use_abs)
         tmp = well_data[dataix][wells[wix]][responses[rix]]
+        if use_accum && respstr[dataix] != "Bottom hole pressure"
+            T = [0.0, time[dataix]...]
+            tmp = cumsum(tmp.*diff(T))
+        end
+        if use_abs
+            tmp = abs.(tmp)
+        end
         return tmp
     end
 
-    sample = map(x -> get_data(1, 1, x), 1:ndata)
+    sample = map(x -> get_data([], 1, 1, x, false, false), 1:ndata)
     nsample = map(length, sample)
     if isnothing(time)
         time = map(s -> 1:length(s), sample)
@@ -328,7 +344,7 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     for dix = 1:ndata
         T = time[dix]
         for i in 1:nw
-            d = @lift(get_data(i, $response_ix, dix))
+            d = @lift(get_data(time, i, $response_ix, dix, $is_accum, $is_abs))
             style = styles[dix]
             if style == :scatter
                 h = scatter!(ax, T, d, color = cmap[i], linewidth = linewidth, marker = :circle)
@@ -340,6 +356,8 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
             push!(lineh, h)
         end
     end
+    x = (tmp, tmp2) -> autolimits!(ax)
+    @lift(x($is_abs, $is_accum))
     if ndata > 1
         elems = []
         for i = 1:ndata
