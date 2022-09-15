@@ -218,6 +218,7 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
                                                               kwarg...)
     # Figure part
     ndata = length(well_data)
+    is_inj = is_injectors(first(well_data))
     @assert ndata <= length(styles) "Can't plot more datasets than styles provided"
     fig = Figure()
     if isnothing(time)
@@ -252,7 +253,7 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
         response_ix[] = val
         autolimits!(ax)
     end
-    use_two_cols = ndata > 6
+    use_two_cols = nw > 5
     if use_two_cols
         right_block = 2:3
     else
@@ -325,9 +326,41 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     time = newtime
 
     lighten(x) = GLMakie.ARGB(x.r, x.g, x.b, 0.2)
-    toggles = [Toggle(fig, active = true, buttoncolor = cmap[i], framecolor_active = lighten(cmap[i])) for i in eachindex(wells)]
-    labels = [Label(fig, w) for w in wellstr]
+    toggles = Vector{Any}([Toggle(fig, active = true, buttoncolor = cmap[i], framecolor_active = lighten(cmap[i])) for i in eachindex(wells)])
 
+    b_inj_on = Button(fig, label = "✔️ I")
+    b_inj_off = Button(fig, label = "❌ I")
+
+    labels = Vector{Any}([Label(fig, w) for w in wellstr])
+
+    b_prod_on = Button(fig, label = "✔️ P")
+    b_prod_off = Button(fig, label = "❌ P")
+
+    buttongrid[1, 7] = b_inj_on
+    buttongrid[1, 8] = b_inj_off
+    buttongrid[1, 9] = b_prod_on
+    buttongrid[1, 10] = b_prod_off
+
+
+    function toggle_wells(do_injectors, status)
+        for (i, w) in enumerate(wellstr)
+            if is_inj[Symbol(w)] == do_injectors
+                toggles[i].active = status
+            end
+        end
+    end
+    on(b_inj_on.clicks) do n
+        toggle_wells(true, true)
+    end
+    on(b_inj_off.clicks) do n
+        toggle_wells(true, false)
+    end
+    on(b_prod_on.clicks) do n
+        toggle_wells(false, true)
+    end
+    on(b_prod_off.clicks) do n
+        toggle_wells(false, false)
+    end
     tmp = hcat(toggles, labels)
     bgrid = tmp
     N = size(bgrid, 1)
@@ -378,6 +411,14 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     end
 
     return fig
+end
+
+function is_injectors(well_data)
+    D = Dict{Symbol, Bool}()
+    for (k, v) in well_data
+        D[k] = sum(v[Symbol("Surface total rate")]) > 0
+    end
+    return D
 end
 
 function basic_3d_figure()
