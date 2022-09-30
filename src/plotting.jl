@@ -32,23 +32,27 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, kw
     limits = Dict()
     for k in keys(data)
         d = data[k]
-        if isa(d, AbstractVector)
-            push!(labels, "$k")
-            push!(pos, (k, 1))
-        else
-            for i = 1:size(d, 1)
-                push!(labels, "$k: $i")
-                push!(pos, (k, i))
+        if eltype(d)<:Real
+            if isa(d, AbstractVector)
+                push!(labels, "$k")
+                push!(pos, (k, 1))
+            else
+                for i = 1:size(d, 1)
+                    push!(labels, "$k: $i")
+                    push!(pos, (k, i))
+                end
             end
+            mv = Inf
+            Mv = -Inf
+            for s in states
+                di = s[k]
+                mv = min(minimum(di), mv)
+                Mv = max(maximum(di), Mv)
+            end
+            limits[k] = (mv, Mv)
+        else
+            @debug "Skipping $k: Non-numeric type" eltype(d)
         end
-        mv = Inf
-        Mv = -Inf
-        for s in states
-            di = s[k]
-            mv = min(minimum(di), mv)
-            Mv = max(maximum(di), Mv)
-        end
-        limits[k] = (mv, Mv)
     end
     datakeys = collect(zip(labels, pos))
     initial_prop = datakeys[1]
@@ -155,7 +159,7 @@ unpack(x, ix) = x[ix, :]
 unpack(x::AbstractVector, ix) = x
 
 
-function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = nothing, linewidth = 5, top_factor = 0.2, textscale = 2.5e-2, geometry = tpfv_geometry(g), kwarg...)
+function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = nothing, linewidth = 5, top_factor = 0.2, textsize = 18, geometry = tpfv_geometry(g), kwarg...)
     if isnothing(textcolor)
         textcolor = color
     end
@@ -170,9 +174,8 @@ function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = noth
     bottom = maximum(z)
     top = minimum(z)
 
-    xrng = coord_range(1)
-    yrng = coord_range(2)
-    textsize = textscale*(xrng + yrng)/2
+    # xrng = coord_range(1)
+    # yrng = coord_range(2)
 
     rng = top - bottom
     s = top + top_factor*rng
@@ -345,7 +348,7 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     function toggle_wells(do_injectors, status)
         for (i, w) in enumerate(wellstr)
             if is_inj[Symbol(w)] == do_injectors
-                toggles[i].active = status
+                toggles[i].active[] = status
             end
         end
     end
