@@ -242,7 +242,14 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     wells = sort!(collect(keys(wd)))
     nw = length(wells)
     if isnothing(cmap)
-        cmap = cgrad(:Paired_12, nw, categorical=true)
+        if nw > 20
+            c_key = :turbo
+        elseif nw > 10
+            c_key = :tab20
+        else
+            c_key = :Paired_10
+        end
+        cmap = cgrad(c_key, nw, categorical=true)
     end
     wellstr = [String(x) for x in wells]
 
