@@ -216,14 +216,17 @@ end
 
 function plot_well_results(well_data::Vector, time = nothing; start_date = nothing,
                                                               names =["Dataset $i" for i in 1:length(well_data)], 
-                                                              linewidth = 3, cmap = nothing, 
-                                                              styles = [nothing, :dash, :scatter, :dashdot, :dot, :dashdotdot],
+                                                              linewidth = 3,
+                                                              cmap = nothing, 
+                                                              dashwidth = 1,
+                                                              styles = [:solid, :scatter, :dash, :dashdot, :dot, :dashdotdot],
+                                                              resolution = (1600, 900),
                                                               kwarg...)
     # Figure part
     ndata = length(well_data)
     is_inj = is_injectors(first(well_data))
     @assert ndata <= length(styles) "Can't plot more datasets than styles provided"
-    fig = Figure()
+    fig = Figure(resolution = resolution)
     if isnothing(time)
         t_l = "Time-step"
         @assert isnothing(start_date) "start_date does not make sense in the absence of time-steps"
@@ -385,6 +388,11 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
             if style == :scatter
                 h = scatter!(ax, T, d, color = cmap[i], linewidth = linewidth, marker = :circle)
             else
+                if style == :dash || style == :dashdot
+                    lw = dashwidth
+                else
+                    lw = linewidth
+                end
                 h = lines!(ax, T, d, linewidth = linewidth, linestyle = style, color = cmap[i])
             end
             t = toggles[i]
@@ -401,7 +409,12 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
             if style == :scatter
                 el = MarkerElement(color = :black, linewidth = linewidth, marker = :circle)
             else
-                el = LineElement(color = :black, linestyle = styles[i], linewidth = linewidth)
+                if style == :dash || style == :dashdot
+                    lw = dashwidth
+                else
+                    lw = linewidth
+                end
+                el = LineElement(color = :black, linestyle = style, linewidth = lw)
             end
             push!(elems, el)
         end
@@ -412,7 +425,7 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
                         halign = :left, valign = :top, orientation = :horizontal
         )
     end
-
+    display(GLMakie.Screen(), fig)
     return fig
 end
 
