@@ -223,6 +223,7 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
                                                               resolution = (1600, 900),
                                                               kwarg...)
     # Figure part
+    names = Vector{String}(names)
     ndata = length(well_data)
     is_inj = is_injectors(first(well_data))
     @assert ndata <= length(styles) "Can't plot more datasets than styles provided"
