@@ -111,17 +111,17 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         change_index(state_index.val + inc)
     end
 
-    fig[3, 3] = hgrid!(
+    fig[4, 3] = hgrid!(
         menu,
         menu_2,
         ; tellheight = false, width = 300)
-    
-    sl_x = Slider(fig[3, 2], range = 1:nstates, value = state_index, snap = true)
+
+    sl_x = Slider(fig[4, 2], range = 1:nstates, value = state_index, snap = true)
 
     low = Observable{Float64}(0.0)
     hi = Observable{Float64}(1.0)
 
-    rs_v = IntervalSlider(fig[4, 2], range = LinRange(0, 1, 1000))
+    rs_v = IntervalSlider(fig[3, :], range = LinRange(0, 1, 1000))
 
     on(rs_v.interval) do x
         low[] = x[1]
@@ -185,7 +185,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         end
     end
 
-    fig[3, 1] = buttongrid = GridLayout()
+    fig[4, 1] = buttongrid = GridLayout()
     rewind = Button(fig, label = "⏪")
     on(rewind.clicks) do n
         increment_index(-nstates)
