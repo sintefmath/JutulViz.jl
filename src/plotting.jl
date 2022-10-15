@@ -180,7 +180,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
     end
 
     # Colormap selector
-    colormaps = ["viridis", "jet"]
+    colormaps = ["viridis", "jet", "balance", "autumn1", "hot", "winter", "terrain", "turbo", "gnuplot", "ocean", "vik"]
     cmap_str = "$colormap"
     if !(cmap_str in colormaps)
         push!(colormaps, cmap_str)
