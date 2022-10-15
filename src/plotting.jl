@@ -111,17 +111,17 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         change_index(state_index.val + inc)
     end
 
-    fig[4, 3] = hgrid!(
+    fig[5, 3] = hgrid!(
         menu,
         menu_2,
         ; tellheight = false, width = 300)
 
-    sl_x = Slider(fig[4, 2], range = 1:nstates, value = state_index, snap = true)
+    sl_x = Slider(fig[5, 2], range = 1:nstates, value = state_index, snap = true)
 
     low = Observable{Float64}(0.0)
     hi = Observable{Float64}(1.0)
 
-    rs_v = IntervalSlider(fig[3, :], range = LinRange(0, 1, 1000))
+    rs_v = IntervalSlider(fig[4, :], range = LinRange(0, 1, 1000))
 
     on(rs_v.interval) do x
         low[] = x[1]
@@ -133,10 +133,13 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         state_index[] = val
     end
     if size(pts, 2) == 3
-        ax = Axis3(fig[1, 1:3])
+        ax = Axis3(fig[2, 1:3])
     else
-        ax = Axis(fig[1, 1:3])
+        ax = Axis(fig[2, 1:3])
     end
+    Menu(fig[1, 3])
+    Menu(fig[1, 1])
+
     is_3d = size(pts, 2) == 3
 
     colormap_name = Observable(colormap)
@@ -148,7 +151,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
     
     cmap = @lift(generate_colormap($colormap_name, limits[$prop_name]))
     scat = Makie.mesh!(ax, pts, tri, color = ys, colorrange = lims, size = 60; shading = is_3d, colormap = cmap, kwarg...)
-    cb = Colorbar(fig[2, 1:3], scat, vertical = false)
+    cb = Colorbar(fig[3, 1:3], scat, vertical = false)
 
     on(menu.selection) do s
         rows = get_valid_rows(s)
@@ -193,7 +196,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         end
     end
 
-    fig[4, 1] = buttongrid = GridLayout()
+    fig[5, 1] = buttongrid = GridLayout()
     rewind = Button(fig, label = "⏪")
     on(rewind.clicks) do n
         increment_index(-nstates)
