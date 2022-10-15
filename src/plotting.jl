@@ -53,7 +53,7 @@ end
 
 default_jutul_resolution() = (1600, 900)
 
-function plot_interactive(grid, states; plot_type = nothing, wells = nothing, resolution = default_jutul_resolution(), kwarg...)
+function plot_interactive(grid, states; plot_type = nothing, wells = nothing, resolution = default_jutul_resolution(), colormap = :viridis, kwarg...)
     pts, tri, mapper = triangulate_mesh(grid)
 
     fig = Figure(resolution = resolution)
@@ -138,8 +138,16 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         ax = Axis(fig[1, 1:3])
     end
     is_3d = size(pts, 2) == 3
-    ys = @lift(mapper.Cells(select_data(states[$state_index], Symbol($prop_name), $row_index, $low, $hi, limits[$prop_name])))
-    scat = Makie.mesh!(ax, pts, tri, color = ys, colorrange = lims, size = 60; shading = is_3d, kwarg...)
+
+    colormap_name = Observable(colormap)
+    ys = @lift(
+                mapper.Cells(
+                    select_data(states[$state_index], Symbol($prop_name), $row_index, $low, $hi, limits[$prop_name])
+                )
+            )
+    
+    cmap = @lift(generate_colormap($colormap_name, limits[$prop_name]))
+    scat = Makie.mesh!(ax, pts, tri, color = ys, colorrange = lims, size = 60; shading = is_3d, colormap = cmap, kwarg...)
     cb = Colorbar(fig[2, 1:3], scat, vertical = false)
 
     on(menu.selection) do s
@@ -230,6 +238,15 @@ end
 unpack(x, ix) = x[ix, :]
 unpack(x::AbstractVector, ix) = x
 
+
+function generate_colormap(colormap_name, limits)
+    #if rand() > 0.5
+    #    colormap_name = :jet
+    #else
+    #    colormap_name = :viridis
+    #end
+    return to_colormap(colormap_name)
+end
 
 function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = nothing, linewidth = 5, top_factor = 0.2, textsize = 18, geometry = tpfv_geometry(g), kwarg...)
     if isnothing(textcolor)
