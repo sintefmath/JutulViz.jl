@@ -54,7 +54,7 @@ end
 default_jutul_resolution() = (1600, 900)
 
 function plot_interactive(grid, states; plot_type = nothing, wells = nothing, resolution = default_jutul_resolution(), kwarg...)
-    pts, tri, mapper = triangulate_outer_surface(grid)
+    pts, tri, mapper = triangulate_mesh(grid)
 
     fig = Figure(resolution = resolution)
     if states isa AbstractDict
@@ -117,6 +117,16 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         ; tellheight = false, width = 300)
     
     sl_x = Slider(fig[3, 2], range = 1:nstates, value = state_index, snap = true)
+
+    low = Observable{Float64}(0.0)
+    hi = Observable{Float64}(1.0)
+
+    rs_v = IntervalSlider(fig[4, 2], range = LinRange(0, 1, 1000))
+
+    on(rs_v.interval) do x
+        low[] = x[1]
+        hi[] = x[2]
+    end
     # point = sl_x.value
     on(sl_x.selected_index) do n
         val = sl_x.selected_index.val
@@ -128,7 +138,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         ax = Axis(fig[1, 1:3])
     end
     is_3d = size(pts, 2) == 3
-    ys = @lift(mapper.Cells(select_data(states[$state_index], Symbol($prop_name), $row_index)))
+    ys = @lift(mapper.Cells(select_data(states[$state_index], Symbol($prop_name), $row_index, $low, $hi, limits[$prop_name])))
     scat = Makie.mesh!(ax, pts, tri, color = ys, colorrange = lims, size = 60; shading = is_3d, kwarg...)
     cb = Colorbar(fig[2, 1:3], scat, vertical = false)
 
@@ -197,13 +207,25 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
     on(ffwd.clicks) do n
         increment_index(nstates)
     end
-    buttons = buttongrid[1, 1:5] = [rewind, prev, play, next, ffwd]
-    # display(fig)
+    buttongrid[1, 1:5] = [rewind, prev, play, next, ffwd]
     display(GLMakie.Screen(), fig)
     return fig, ax
 end
 
-select_data(state, fld, ix) = unpack(state[fld], ix)
+function select_data(state, fld, ix, low, high, limits)
+    d = unpack(state[fld], ix)
+    if low > 0.0 || high < 1.0
+        d = copy(d)
+        L, U = limits
+        for i in eachindex(d)
+            val = (d[i] - L)/(U - L)
+            if val < low || val > high
+                d[i] = NaN
+            end
+        end
+    end
+    return d
+end
 
 unpack(x, ix) = x[ix, :]
 unpack(x::AbstractVector, ix) = x
@@ -511,7 +533,7 @@ function plot_mesh(m; kwarg...)
 end
 
 function plot_mesh!(ax, m; color = :lightblue, kwarg...)
-    pts, tri, mapper = triangulate_outer_surface(m)
+    pts, tri, mapper = triangulate_mesh(m)
     f = mesh!(ax, pts, tri; color = color, kwarg...)
     return f
 end
@@ -531,6 +553,6 @@ function plot_cell_data(m, data; colorbar = :vertical, kwarg...)
 end
 
 function plot_cell_data!(ax, m, data, kwarg...)
-    pts, tri, mapper = triangulate_outer_surface(m)
+    pts, tri, mapper = triangulate_mesh(m)
     return mesh!(ax, pts, tri; color = mapper.Cells(data), kwarg...)
 end
