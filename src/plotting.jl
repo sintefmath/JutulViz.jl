@@ -190,7 +190,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         colormap_name[] = Symbol(s)
     end
     # Alpha map selector
-    alphamaps = ["none", "linear"]
+    alphamaps = ["none", "linear", "linear_scaled", "inv_linear", "inv_linear_scaled"]
     amap_str = "$alphamap"
     if !(amap_str in alphamaps)
         push!(alphamaps, cmap_str)
@@ -265,12 +265,26 @@ unpack(x::AbstractVector, ix) = x
 
 
 function generate_colormap(colormap_name, alphamap_name, limits, low, high)
-    #if rand() > 0.5
-    #    colormap_name = :jet
-    #else
-    #    colormap_name = :viridis
-    #end
-    return to_colormap(colormap_name)
+    cmap = to_colormap(colormap_name)
+    n = length(cmap)
+    if alphamap_name != :none
+        if alphamap_name == :linear
+            F = x -> x
+        elseif alphamap_name == :inv_linear
+            F = x -> 1.0 - x
+        elseif alphamap_name == :linear_scaled
+            F = x -> clamp((x - low)./(high-low), 0.0, 1.0)
+        elseif alphamap_name == :inv_linear_scaled
+            F = x -> clamp(((1.0 - x) - high)./(low - high), 0.0, 1.0)
+        else
+            error()
+        end
+        u = range(0, 1, length = n)
+        for (i, c) in enumerate(cmap)
+            cmap[i] = GLMakie.RGBA{Float64}(c.r, c.g, c.b, F(u[i]))
+        end
+    end
+    return cmap
 end
 
 function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = nothing, linewidth = 5, top_factor = 0.2, textsize = 18, geometry = tpfv_geometry(g), kwarg...)
