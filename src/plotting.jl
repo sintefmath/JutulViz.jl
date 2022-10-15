@@ -51,29 +51,22 @@ function plot_interactive(model::SimulationModel, states; kwarg...)
     end
 end
 
-function plot_interactive(grid, states; plot_type = nothing, wells = nothing, kwarg...)
+default_jutul_resolution() = (1600, 900)
+
+function plot_interactive(grid, states; plot_type = nothing, wells = nothing, resolution = default_jutul_resolution(), kwarg...)
     pts, tri, mapper = triangulate_outer_surface(grid)
 
-    fig = Figure()
+    fig = Figure(resolution = resolution)
     if states isa AbstractDict
         states = [states]
     end
     data = states[1]
     labels = Vector{String}()
-    pos = Vector{Tuple{Symbol, Integer}}()
     limits = Dict()
     for k in keys(data)
         d = data[k]
         if eltype(d)<:Real
-            if isa(d, AbstractVector)
-                push!(labels, "$k")
-                push!(pos, (k, 1))
-            else
-                for i = 1:size(d, 1)
-                    push!(labels, "$k: $i")
-                    push!(pos, (k, i))
-                end
-            end
+            push!(labels, "$k")
             mv = Inf
             Mv = -Inf
             for s in states
@@ -81,17 +74,29 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, kw
                 mv = min(minimum(di), mv)
                 Mv = max(maximum(di), Mv)
             end
-            limits[k] = (mv, Mv)
+            limits["$k"] = (mv, Mv)
         else
             @debug "Skipping $k: Non-numeric type" eltype(d)
         end
     end
-    datakeys = collect(zip(labels, pos))
+    function get_valid_rows(s)
+        sample = data[Symbol(s)]
+        if sample isa AbstractVector
+            n = 1
+        else
+            n = size(sample, 1)
+        end
+        return ["$x" for x in 1:n]
+    end
+    datakeys = labels
     initial_prop = datakeys[1]
     state_index = Observable{Int64}(1)
-    prop_name = Observable{Any}(initial_prop[2])
-    lims = Observable(limits[get_label(initial_prop[2])])
-    menu = Menu(fig, options = datakeys, prompt = initial_prop[1])
+    row_index = Observable{Int64}(1)
+    prop_name = Observable{Any}(initial_prop)
+    lims = Observable(limits[initial_prop])
+    menu = Menu(fig, options = datakeys, prompt = initial_prop)
+    menu_2 = Menu(fig, options = get_valid_rows("$initial_prop"), prompt = "1", width = 60)
+
     nstates = length(states)
 
     function change_index(ix)
@@ -106,11 +111,9 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, kw
         change_index(state_index.val + inc)
     end
 
-    fig[3, 3] = vgrid!(
-        #Label(fig, "Property", width = nothing),
+    fig[3, 3] = hgrid!(
         menu,
-        # Label(fig, "Function", width = nothing),
-        # menu2
+        menu_2,
         ; tellheight = false, width = 300)
     
     sl_x = Slider(fig[3, 2], range = 1:nstates, value = state_index, snap = true)
@@ -125,15 +128,33 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, kw
         ax = Axis(fig[1, 1:3])
     end
     is_3d = size(pts, 2) == 3
-    ys = @lift(mapper.Cells(select_data(states[$state_index], $prop_name)))
+    ys = @lift(mapper.Cells(select_data(states[$state_index], Symbol($prop_name), $row_index)))
     scat = Makie.mesh!(ax, pts, tri, color = ys, colorrange = lims, size = 60; shading = is_3d, kwarg...)
     cb = Colorbar(fig[2, 1:3], scat, vertical = false)
 
     on(menu.selection) do s
+        rows = get_valid_rows(s)
+        msel =  menu_2.selection[]
+        if isnothing(msel)
+            old = 1
+        else
+            old = parse(Int64, msel)
+        end
+        nextn = min(old, length(rows))
         prop_name[] = s
-        pos = get_label(s)
-        lims[] = limits[pos]
-        # autolimits!(ax)
+        row_index[] = nextn
+        notify(prop_name)
+        notify(menu_2.selection)
+        menu_2.options = rows
+        menu_2.selection[] = "$nextn"
+        lims[] = limits[s]
+    end
+
+    on(menu_2.selection) do s
+        if isnothing(s)
+            s = "1"
+        end
+        row_index[] = parse(Int64, s)
     end
 
     function loopy()
@@ -182,10 +203,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, kw
     return fig, ax
 end
 
-get_label(x::Tuple) = x[1]
-get_label(x) = x
-
-select_data(state, fld::Tuple) = unpack(state[get_label(fld)], fld[2])
+select_data(state, fld, ix) = unpack(state[fld], ix)
 
 unpack(x, ix) = x[ix, :]
 unpack(x::AbstractVector, ix) = x
@@ -252,7 +270,7 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
                                                               cmap = nothing, 
                                                               dashwidth = 1,
                                                               styles = [:solid, :scatter, :dash, :dashdot, :dot, :dashdotdot],
-                                                              resolution = (1600, 900),
+                                                              resolution = default_jutul_resolution(),
                                                               kwarg...)
     # Figure part
     names = Vector{String}(names)
