@@ -53,7 +53,7 @@ end
 
 default_jutul_resolution() = (1600, 900)
 
-function plot_interactive(grid, states; plot_type = nothing, wells = nothing, resolution = default_jutul_resolution(), colormap = :viridis, alphamap = :none, kwarg...)
+function plot_interactive(grid, states; plot_type = nothing, wells = nothing, resolution = default_jutul_resolution(), alpha = 1.0, colormap = :viridis, alphamap = :no_alpha_map, kwarg...)
     pts, tri, mapper = triangulate_mesh(grid)
 
     fig = Figure(resolution = resolution)
@@ -149,7 +149,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
     # Selection of colormap
     colormap_name = Observable(colormap)
     alphamap_name = Observable(alphamap)
-    cmap = @lift(generate_colormap($colormap_name, $alphamap_name, limits[$prop_name], $low, $hi))
+    cmap = @lift(generate_colormap($colormap_name, $alphamap_name, alpha, $low, $hi))
     # Actual plotting call
     scat = Makie.mesh!(ax, pts, tri, color = ys, colorrange = lims, size = 60; shading = is_3d, colormap = cmap, kwarg...)
     Colorbar(fig[3, 1:3], scat, vertical = false)
@@ -190,7 +190,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         colormap_name[] = Symbol(s)
     end
     # Alpha map selector
-    alphamaps = ["none", "linear", "linear_scaled", "inv_linear", "inv_linear_scaled"]
+    alphamaps = ["no_alpha_map", "linear", "linear_scaled", "inv_linear", "inv_linear_scaled"]
     amap_str = "$alphamap"
     if !(amap_str in alphamaps)
         push!(alphamaps, cmap_str)
@@ -264,10 +264,10 @@ unpack(x, ix) = x[ix, :]
 unpack(x::AbstractVector, ix) = x
 
 
-function generate_colormap(colormap_name, alphamap_name, limits, low, high)
+function generate_colormap(colormap_name, alphamap_name, base_alpha, low, high)
     cmap = to_colormap(colormap_name)
     n = length(cmap)
-    if alphamap_name != :none
+    if alphamap_name != :no_alpha_map
         if alphamap_name == :linear
             F = x -> x
         elseif alphamap_name == :inv_linear
@@ -281,7 +281,7 @@ function generate_colormap(colormap_name, alphamap_name, limits, low, high)
         end
         u = range(0, 1, length = n)
         for (i, c) in enumerate(cmap)
-            cmap[i] = GLMakie.RGBA{Float64}(c.r, c.g, c.b, F(u[i]))
+            cmap[i] = GLMakie.RGBA{Float64}(c.r, c.g, c.b, base_alpha*F(u[i]))
         end
     end
     return cmap
