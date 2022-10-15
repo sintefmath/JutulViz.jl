@@ -53,7 +53,7 @@ end
 
 default_jutul_resolution() = (1600, 900)
 
-function plot_interactive(grid, states; plot_type = nothing, wells = nothing, resolution = default_jutul_resolution(), colormap = :viridis, kwarg...)
+function plot_interactive(grid, states; plot_type = nothing, wells = nothing, resolution = default_jutul_resolution(), colormap = :viridis, alphamap = :none, kwarg...)
     pts, tri, mapper = triangulate_mesh(grid)
 
     fig = Figure(resolution = resolution)
@@ -140,17 +140,20 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
 
     is_3d = size(pts, 2) == 3
 
-    colormap_name = Observable(colormap)
+    # Selection of data
     ys = @lift(
                 mapper.Cells(
                     select_data(states[$state_index], Symbol($prop_name), $row_index, $low, $hi, limits[$prop_name])
                 )
             )
-    
-    cmap = @lift(generate_colormap($colormap_name, limits[$prop_name]))
+    # Selection of colormap
+    colormap_name = Observable(colormap)
+    alphamap_name = Observable(alphamap)
+    cmap = @lift(generate_colormap($colormap_name, $alphamap_name, limits[$prop_name], $low, $hi))
+    # Actual plotting call
     scat = Makie.mesh!(ax, pts, tri, color = ys, colorrange = lims, size = 60; shading = is_3d, colormap = cmap, kwarg...)
-    cb = Colorbar(fig[3, 1:3], scat, vertical = false)
-
+    Colorbar(fig[3, 1:3], scat, vertical = false)
+    # Menu for field to plot
     on(menu.selection) do s
         rows = get_valid_rows(s)
         msel =  menu_2.selection[]
@@ -168,7 +171,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         menu_2.selection[] = "$nextn"
         lims[] = limits[s]
     end
-
+    # Row of dataset selector
     on(menu_2.selection) do s
         if isnothing(s)
             s = "1"
@@ -176,16 +179,25 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         row_index[] = parse(Int64, s)
     end
 
+    # Colormap selector
     colormaps = ["viridis", "jet"]
     cmap_str = "$colormap"
     if !(cmap_str in colormaps)
         push!(colormaps, cmap_str)
     end
     menu_cmap = Menu(fig[1, 3], options = colormaps, prompt = cmap_str)
-    Menu(fig[1, 1])
-
     on(menu_cmap.selection) do s
         colormap_name[] = Symbol(s)
+    end
+    # Alpha map selector
+    alphamaps = ["none", "linear"]
+    amap_str = "$alphamap"
+    if !(amap_str in alphamaps)
+        push!(alphamaps, cmap_str)
+    end
+    menu_amap = Menu(fig[1, 1], options = alphamaps, prompt = amap_str)
+    on(menu_amap.selection) do s
+        alphamap_name[] = Symbol(s)
     end
 
     function loopy()
@@ -252,7 +264,7 @@ unpack(x, ix) = x[ix, :]
 unpack(x::AbstractVector, ix) = x
 
 
-function generate_colormap(colormap_name, limits)
+function generate_colormap(colormap_name, alphamap_name, limits, low, high)
     #if rand() > 0.5
     #    colormap_name = :jet
     #else
