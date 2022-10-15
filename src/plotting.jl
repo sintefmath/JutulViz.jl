@@ -137,8 +137,6 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
     else
         ax = Axis(fig[2, 1:3])
     end
-    Menu(fig[1, 3])
-    Menu(fig[1, 1])
 
     is_3d = size(pts, 2) == 3
 
@@ -176,6 +174,18 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
             s = "1"
         end
         row_index[] = parse(Int64, s)
+    end
+
+    colormaps = ["viridis", "jet"]
+    cmap_str = "$colormap"
+    if !(cmap_str in colormaps)
+        push!(colormaps, cmap_str)
+    end
+    menu_cmap = Menu(fig[1, 3], options = colormaps, prompt = cmap_str)
+    Menu(fig[1, 1])
+
+    on(menu_cmap.selection) do s
+        colormap_name[] = Symbol(s)
     end
 
     function loopy()
