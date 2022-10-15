@@ -22,10 +22,42 @@ function plot_reservoir(g, states; wells = nothing, kwarg...)
     return (fig, ax)
 end
 
+function plot_interactive(model::MultiModel, states, model_key = nothing; kwarg...)
+    if states isa AbstractDict
+        states = [states]
+    end
+    if isnothing(model_key)
+        model_key = first(keys(model.models))
+    end
+    if haskey(states[1], model_key)
+        model_states = map(x -> x[model_key], states)
+    else
+        # Hope that the user knew what they sent in
+        model_states = states
+    end
+    return plot_interactive(model[model_key], model_states; kwarg...)
+end
+
+
+function plot_interactive(model::SimulationModel, states; kwarg...)
+    if states isa AbstractDict
+        states = [states]
+    end
+    mesh = model.plot_mesh
+    if isnothing(mesh)
+        @warn "No plotting possible. SimulationModel has .plot_mesh = nothing." 
+    else
+        return plot_interactive(mesh, states; kwarg...)
+    end
+end
+
 function plot_interactive(grid, states; plot_type = nothing, wells = nothing, kwarg...)
     pts, tri, mapper = triangulate_outer_surface(grid)
 
     fig = Figure()
+    if states isa AbstractDict
+        states = [states]
+    end
     data = states[1]
     labels = Vector{String}()
     pos = Vector{Tuple{Symbol, Integer}}()
@@ -145,8 +177,8 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, kw
         increment_index(nstates)
     end
     buttons = buttongrid[1, 1:5] = [rewind, prev, play, next, ffwd]
-    
-    display(fig)
+    # display(fig)
+    display(GLMakie.Screen(), fig)
     return fig, ax
 end
 
