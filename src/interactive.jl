@@ -52,15 +52,16 @@ default_jutul_resolution() = (1600, 900)
 function plot_interactive(grid, states; plot_type = nothing, wells = nothing, transparency = false, resolution = default_jutul_resolution(), alpha = 1.0, colormap = :viridis, alphamap = :no_alpha_map, kwarg...)
     primitives = nothing
     if isnothing(plot_type)
-        plot_candidates = [:mesh, :meshscatter]
+        plot_candidates = [:mesh, :meshscatter, :lines]
         for p in plot_candidates
             primitives = plot_primitives(grid, p)
             if !isnothing(primitives)
+                plot_type = p
                 break
             end
         end
         if isnothing(primitives)
-            @warn "No suitable plot found for this grid. I tried $plot_candidates"
+            @warn "No suitable plot found for mesh of type $(typeof(grid)). I tried $plot_candidates"
             return
         end
     else
@@ -80,9 +81,12 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
     data = states[1]
     labels = Vector{String}()
     limits = Dict()
+    nc = number_of_cells(grid)
     for k in keys(data)
         d = data[k]
-        if eltype(d)<:Real
+        is_valid_vec = d isa AbstractVector && length(d) == nc
+        is_valid_mat = d isa AbstractMatrix && size(d, 2) == nc
+        if eltype(d)<:Real && (is_valid_vec || is_valid_mat) 
             push!(labels, "$k")
             mv = Inf
             Mv = -Inf
@@ -287,6 +291,20 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
                                         colormap = cmap,
                                         transparency = transparency,
                                         kwarg...)
+    elseif plot_type == :lines
+        scat = Makie.lines!(ax, pts[:, 1], pts[:, 2], pts[:, 3], color = ys,
+                                                                linewidth = 5,
+                                                                transparency = transparency,
+                                                                colorrange = lims)
+        txt = primitives.top_text
+        if !isnothing(txt)
+            top = vec(pts[1, :])
+            text!(txt,
+                    position = Tuple([top[1], top[2], top[3]]),
+                    space = :data,
+                    align = (:center, :baseline)
+                    )
+        end
     else
         error("Unsupported plot_type $plot_type")
     end

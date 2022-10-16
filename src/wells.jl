@@ -28,7 +28,12 @@ function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = noth
     pts[3, 1] = s
 
     l = pts[:, 1]
-    text!(well_name_for_plot(w, name), position = Tuple([l[1], l[2], -l[3]]), space = :data, color = textcolor, align = (:center, :baseline), textsize = textsize)
+    text!(well_name_for_plot(w, name),
+            position = Tuple([l[1], l[2], -l[3]]),
+            space = :data,
+            color = textcolor,
+            align = (:center, :baseline),
+            textsize = textsize)
     lines!(ax, vec(pts[1, :]), vec(pts[2, :]), -vec(pts[3, :]), linewidth = linewidth, color = color, kwarg...)
 end
 
