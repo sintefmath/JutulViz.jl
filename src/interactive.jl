@@ -60,7 +60,14 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
             end
         end
         if isnothing(primitives)
-            @info "No suitable plot found for this grid. I tried $plot_candidates"
+            @warn "No suitable plot found for this grid. I tried $plot_candidates"
+            return
+        end
+    else
+        primitives = plot_primitives(grid, plot_type)
+        if isnothing(primitives)
+            @warn "Mesh of type $(typeof(grid)) does not support plot_type :$plot_type"
+            return
         end
     end
     pts = primitives.points
@@ -254,7 +261,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
     end
     buttongrid[1, 1:5] = [rewind, prev, play, next, ffwd]
 
-    plot_type = :mesh
+    # plot_type = :mesh
     # plot_type = :meshscatter
     # Actual plotting call
     if plot_type == :mesh
@@ -267,9 +274,15 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
                                         transparency = transparency,
                                         kwarg...)
     elseif plot_type == :meshscatter
+        sz = primitives.sizes
+        sizes = zeros(GLMakie.Vec3f, size(sz, 1))
+        factor = 0.8
+        for i in eachindex(sizes)
+            sizes[i] = GLMakie.Vec3f(factor*sz[i, 1], factor*sz[i, 2], factor*sz[i, 3])
+        end
         scat = Makie.meshscatter!(ax, pts; color = ys,
                                         colorrange = lims,
-                                        markersize = 60,
+                                        markersize = sizes,
                                         shading = is_3d,
                                         colormap = cmap,
                                         transparency = transparency,
