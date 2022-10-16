@@ -53,7 +53,7 @@ end
 
 default_jutul_resolution() = (1600, 900)
 
-function plot_interactive(grid, states; plot_type = nothing, wells = nothing, resolution = default_jutul_resolution(), alpha = 1.0, colormap = :viridis, alphamap = :no_alpha_map, kwarg...)
+function plot_interactive(grid, states; plot_type = nothing, wells = nothing, transparency = false, resolution = default_jutul_resolution(), alpha = 1.0, colormap = :viridis, alphamap = :no_alpha_map, kwarg...)
     pts, tri, mapper = triangulate_mesh(grid)
 
     fig = Figure(resolution = resolution)
@@ -150,9 +150,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
     colormap_name = Observable(colormap)
     alphamap_name = Observable(alphamap)
     cmap = @lift(generate_colormap($colormap_name, $alphamap_name, alpha, $low, $hi))
-    # Actual plotting call
-    scat = Makie.mesh!(ax, pts, tri, color = ys, colorrange = lims, size = 60; shading = is_3d, colormap = cmap, kwarg...)
-    Colorbar(fig[3, 1:3], scat, vertical = false)
+
     # Menu for field to plot
     on(menu.selection) do s
         rows = get_valid_rows(s)
@@ -195,7 +193,8 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
     if !(amap_str in alphamaps)
         push!(alphamaps, cmap_str)
     end
-    menu_amap = Menu(fig[1, 1], options = alphamaps, prompt = amap_str)
+    fig[1, 1] = lmap = GridLayout()
+    menu_amap = Menu(lmap[1, 1], options = alphamaps, prompt = amap_str)
     on(menu_amap.selection) do s
         alphamap_name[] = Symbol(s)
     end
@@ -241,6 +240,17 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, re
         increment_index(nstates)
     end
     buttongrid[1, 1:5] = [rewind, prev, play, next, ffwd]
+
+    # Actual plotting call
+    scat = Makie.mesh!(ax, pts, tri; color = ys,
+                                     colorrange = lims,
+                                     size = 60,
+                                     shading = is_3d,
+                                     colormap = cmap,
+                                     transparency = transparency,
+                                     kwarg...)
+    Colorbar(fig[3, 1:3], scat, vertical = false)
+
     display(GLMakie.Screen(), fig)
     return fig, ax
 end
