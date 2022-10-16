@@ -292,10 +292,14 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
                                         transparency = transparency,
                                         kwarg...)
     elseif plot_type == :lines
-        scat = Makie.lines!(ax, pts[:, 1], pts[:, 2], pts[:, 3], color = ys,
-                                                                linewidth = 5,
-                                                                transparency = transparency,
-                                                                colorrange = lims)
+        x = pts[:, 1]
+        y = pts[:, 2]
+        z = pts[:, 3]
+        scat = Makie.lines!(ax, x, y, z, color = ys,
+                                                    linewidth = 15,
+                                                    transparency = transparency,
+                                                    colormap = cmap,
+                                                    colorrange = lims)
         txt = primitives.top_text
         if !isnothing(txt)
             top = vec(pts[1, :])
@@ -304,6 +308,9 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
                     space = :data,
                     align = (:center, :baseline)
                     )
+        end
+        if primitives.marker_size > 0
+            Makie.scatter!(ax, x, y, z, marker_size = primitives.marker_size, color = :black, alpha = 0.5, overdraw = true)
         end
     else
         error("Unsupported plot_type $plot_type")
