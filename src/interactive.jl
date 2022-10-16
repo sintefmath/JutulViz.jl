@@ -50,7 +50,21 @@ end
 default_jutul_resolution() = (1600, 900)
 
 function plot_interactive(grid, states; plot_type = nothing, wells = nothing, transparency = false, resolution = default_jutul_resolution(), alpha = 1.0, colormap = :viridis, alphamap = :no_alpha_map, kwarg...)
-    pts, tri, mapper = triangulate_mesh(grid)
+    primitives = nothing
+    if isnothing(plot_type)
+        plot_candidates = [:mesh, :meshscatter]
+        for p in plot_candidates
+            primitives = plot_primitives(grid, p)
+            if !isnothing(primitives)
+                break
+            end
+        end
+        if isnothing(primitives)
+            @info "No suitable plot found for this grid. I tried $plot_candidates"
+        end
+    end
+    pts = primitives.points
+    mapper = primitives.mapper
 
     fig = Figure(resolution = resolution)
     if states isa AbstractDict
@@ -244,6 +258,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
     # plot_type = :meshscatter
     # Actual plotting call
     if plot_type == :mesh
+        tri = primitives.triangulation
         scat = Makie.mesh!(ax, pts, tri; color = ys,
                                         colorrange = lims,
                                         size = 60,
