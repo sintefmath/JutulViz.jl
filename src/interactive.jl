@@ -304,7 +304,7 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
         if !isnothing(txt)
             top = vec(pts[1, :])
             text!(txt,
-                    position = Tuple([top[1], top[2], top[3]]),
+                    position = Tuple([top[1], top[2], top[3] + 2.0]),
                     space = :data,
                     align = (:center, :baseline)
                     )
