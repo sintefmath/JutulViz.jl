@@ -1,41 +1,40 @@
-using Plots, GraphRecipes
-
-export plot_graph
-
-
-function get_graph(model)
-    primary = model.primary_variables
-    secondary = model.secondary_variables
-    nodes, edges = build_variable_graph(model, primary, secondary)
-    return nodes, edges
-end
-
-function get_index_graph(nodes, edges)
-    nodes_num = 1:size(nodes)[1]
-    nodes_ind = Dict([nodes[i] => i for i in nodes_num])
-    edges_ind = Vector{Vector{Any}}()
-
-    for edges_vec in edges
-        v = []
-        for d in edges_vec
-            push!(v, nodes_ind[d])
+function plot_variable_graph(model)
+    graph, nodes, = build_variable_graph(model, to_graph = true)
+    xs, ys, paths = solve_positions(Zarate(), graph)
+    lay = _ -> Point.(zip(xs,ys))
+    # create a vector of Point2f per edge
+    wp = [Point2f.(zip(paths[e]...)) for e in Graphs.edges(graph)]
+    alignments = []
+    for i in xs
+        if i == 1
+            al = (:right, :center)
+        else
+            al = (:center, :bottom)
         end
-        push!(edges_ind, v)
+        push!(alignments, al)
     end
-    
-    return edges_ind
+    colors = Vector{Symbol}()
+    for n in nodes
+        if n in keys(model.primary_variables)
+            c = :red
+        elseif n in keys(model.secondary_variables)
+            c = :blue
+        else
+            c = :black
+        end
+        push!(colors, c)
+    end
+    N = length(nodes)
+    graphplot(graph, layout=lay,
+                     waypoints=wp,
+                     nlabels_distance=10,
+                     nlabels_textsize=20,
+                     node_size = [20 for i in 1:N],
+                     edge_width= [3 for i in 1:ne(graph)],
+                     edge_color = :grey80,
+                     node_color = colors,
+                     nlabels_align= alignments,
+                     nlabels = map(String, nodes))
 end
 
-function plot_graph(model)
-    # nodes = [:a, :b, :c, :d]
-    # edges = [[], [:a], [:a], [:a, :c]]
-
-    nodes, edges = get_graph(model)
-    nodes_name = [String(node) for node in nodes]
-    edges_ind = get_index_graph(nodes, edges)
-
-    p = graphplot(edges_ind, names=nodes_name, nodeshape=:rect, curvature_scalar=0.001)
-    Plots.plot!(size=(1200, 1200))
-    Plots.plot!(show=true)
-end
 
