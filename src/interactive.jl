@@ -278,11 +278,16 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
                                         transparency = transparency,
                                         kwarg...)
     elseif plot_type == :meshscatter
-        sz = primitives.sizes
+        sz = 0.8.*primitives.sizes
+        npts, d = size(pts)
+        if d < 3
+            @info size(pts) typeof(pts)
+            pts = hcat(pts, zeros(npts, 3 - d))
+            sz = hcat(sz, ones(npts, 3 - d))
+        end 
         sizes = zeros(GLMakie.Vec3f, size(sz, 1))
-        factor = 0.8
         for i in eachindex(sizes)
-            sizes[i] = GLMakie.Vec3f(factor*sz[i, 1], factor*sz[i, 2], factor*sz[i, 3])
+            sizes[i] = GLMakie.Vec3f(sz[i, 1], sz[i, 2], sz[i, 3])
         end
         scat = Makie.meshscatter!(ax, pts; color = ys,
                                         colorrange = lims,
