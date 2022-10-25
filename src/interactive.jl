@@ -49,8 +49,26 @@ end
 
 default_jutul_resolution() = (1600, 900)
 
-function plot_interactive(grid, states; plot_type = nothing, primitives = nothing, transparency = false, resolution = default_jutul_resolution(), alpha = 1.0, colormap = :viridis, alphamap = :no_alpha_map, kwarg...)
-    if isnothing(primitives)
+function plot_interactive(grid, states; plot_type = nothing,
+                                        primitives = nothing,
+                                        transparency = false,
+                                        resolution = default_jutul_resolution(),
+                                        alpha = 1.0,
+                                        colormap = :viridis,
+                                        alphamap = :no_alpha_map,
+                                        kwarg...)
+    has_primitives = !isnothing(primitives)
+    if grid isa Integer
+        # Assume that someone figured out primitives already...
+        nc = grid
+        @assert has_primitives
+        if isnothing(plot_type)
+            plot_type = :mesh
+        end
+    else
+        nc = number_of_cells(grid)
+    end
+    if !has_primitives
         if isnothing(plot_type)
             plot_candidates = [:mesh, :meshscatter, :lines]
             for p in plot_candidates
@@ -82,7 +100,6 @@ function plot_interactive(grid, states; plot_type = nothing, primitives = nothin
     data = states[1]
     labels = Vector{String}()
     limits = Dict()
-    nc = number_of_cells(grid)
     for k in keys(data)
         d = data[k]
         is_valid_vec = d isa AbstractVector && length(d) == nc
@@ -93,8 +110,8 @@ function plot_interactive(grid, states; plot_type = nothing, primitives = nothin
             Mv = -Inf
             for s in states
                 di = s[k]
-                mv = min(minimum(di), mv)
-                Mv = max(maximum(di), Mv)
+                mv = min(minimum(x -> isnan(x) ? Inf : x, di), mv)
+                Mv = max(maximum(x -> isnan(x) ? -Inf : x, di), Mv)
             end
             if mv == Mv
                 Mv = 1.01*mv + 1e-12
@@ -373,7 +390,7 @@ function basic_3d_figure()
 end
 
 export plot_multimodel_interactive
-function plot_multimodel_interactive(model, states, model_keys = keys(model.models), plot_type = :mesh)
+function plot_multimodel_interactive(model, states, model_keys = keys(model.models), plot_type = :mesh; kwarg...)
     n = length(model_keys)
     primitives = Vector{Any}(undef, n)
     ncells = zeros(Int64, n)
@@ -417,7 +434,7 @@ function plot_multimodel_interactive(model, states, model_keys = keys(model.mode
             end
         end
     end
-
+    # Create flattened states with NaN for missing data
     total_number_of_cells = sum(ncells)
     new_states = Vector{Dict{Symbol, Any}}()
     for state in states
@@ -432,9 +449,34 @@ function plot_multimodel_interactive(model, states, model_keys = keys(model.mode
                     data[:, offsets[i]:(offsets[i+1]-1)] = old_data
                 end
             end
+            new_state[state_field] = data
         end
         push!(new_states, new_state)
     end
-    # TODO: Merge pts etc.
-    @info model_keys ncells states_mapped offsets all_state_fields
+    # Merge triangulations
+    face_index = Vector{Int64}()
+    points = map(x -> x.points, primitives)
+    tri = map(x -> x.triangulation, primitives)
+    cell_index = map(x -> x.mapper.indices.Cells, primitives)
+    offset = 0
+    for (pts, T) in zip(points, tri)
+        @. T += offset
+        offset += size(pts, 1)
+    end
+    offset = 0
+    for (nc, cix) in zip(ncells, cell_index)
+        @. cix += offset
+        offset += nc
+    end
+    tri = vcat(tri...)
+    points = vcat(points...)
+    cell_index = vcat(cell_index...)
+
+    mapper = (
+                Cells = (cell_data) -> cell_data[cell_index],
+                Faces = (face_data) -> face_data[face_index],
+                indices = (Cells = cell_index, Faces = face_index)
+              )
+    acc_primitives = (points = points, triangulation = tri, mapper = mapper)
+    plot_interactive(total_number_of_cells, new_states, primitives = acc_primitives; kwarg...)
 end
