@@ -49,26 +49,27 @@ end
 
 default_jutul_resolution() = (1600, 900)
 
-function plot_interactive(grid, states; plot_type = nothing, wells = nothing, transparency = false, resolution = default_jutul_resolution(), alpha = 1.0, colormap = :viridis, alphamap = :no_alpha_map, kwarg...)
-    primitives = nothing
-    if isnothing(plot_type)
-        plot_candidates = [:mesh, :meshscatter, :lines]
-        for p in plot_candidates
-            primitives = plot_primitives(grid, p)
-            if !isnothing(primitives)
-                plot_type = p
-                break
+function plot_interactive(grid, states; plot_type = nothing, primitives = nothing, transparency = false, resolution = default_jutul_resolution(), alpha = 1.0, colormap = :viridis, alphamap = :no_alpha_map, kwarg...)
+    if isnothing(primitives)
+        if isnothing(plot_type)
+            plot_candidates = [:mesh, :meshscatter, :lines]
+            for p in plot_candidates
+                primitives = plot_primitives(grid, p)
+                if !isnothing(primitives)
+                    plot_type = p
+                    break
+                end
             end
-        end
-        if isnothing(primitives)
-            @warn "No suitable plot found for mesh of type $(typeof(grid)). I tried $plot_candidates"
-            return
-        end
-    else
-        primitives = plot_primitives(grid, plot_type)
-        if isnothing(primitives)
-            @warn "Mesh of type $(typeof(grid)) does not support plot_type :$plot_type"
-            return
+            if isnothing(primitives)
+                @warn "No suitable plot found for mesh of type $(typeof(grid)). I tried $plot_candidates"
+                return
+            end
+        else
+            primitives = plot_primitives(grid, plot_type)
+            if isnothing(primitives)
+                @warn "Mesh of type $(typeof(grid)) does not support plot_type :$plot_type"
+                return
+            end
         end
     end
     pts = primitives.points
@@ -265,8 +266,6 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
     end
     buttongrid[1, 1:5] = [rewind, prev, play, next, ffwd]
 
-    # plot_type = :mesh
-    # plot_type = :meshscatter
     # Actual plotting call
     if plot_type == :mesh
         tri = primitives.triangulation
@@ -281,7 +280,6 @@ function plot_interactive(grid, states; plot_type = nothing, wells = nothing, tr
         sz = 0.8.*primitives.sizes
         npts, d = size(pts)
         if d < 3
-            @info size(pts) typeof(pts)
             pts = hcat(pts, zeros(npts, 3 - d))
             sz = hcat(sz, ones(npts, 3 - d))
         end 
@@ -372,4 +370,71 @@ function basic_3d_figure()
     fig = Figure()
     ax = Axis3(fig[1, 1])
     return (fig, ax)
+end
+
+export plot_multimodel_interactive
+function plot_multimodel_interactive(model, states, model_keys = keys(model.models), plot_type = :mesh)
+    n = length(model_keys)
+    primitives = Vector{Any}(undef, n)
+    ncells = zeros(Int64, n)
+    active = BitArray(undef, n)
+    active .= false
+    for (i, k) in enumerate(model_keys)
+        p = model[k].plot_mesh
+        if isnothing(p)
+            keep = false
+        else
+            primitive = plot_primitives(p, plot_type)
+            keep = !isnothing(primitive)
+            if keep
+                nc = maximum(primitive.mapper.indices.Cells)
+                ncells[i] = nc
+                primitives[i] = primitive
+                keep = keep && nc > 0
+            end
+        end
+        active[i] = keep
+    end
+    model_keys = model_keys[active]
+    primitives = primitives[active]
+    ncells = ncells[active]
+    # Remap states so that we have NaN padded versions
+    offsets = cumsum(vcat([1], ncells))
+    states_mapped = Vector{Dict{Symbol, Any}}()
+    # Find all possible state fields
+    all_state_fields = []
+    state = states[1]
+    for (i, model_key) in enumerate(model_keys)
+        nc = ncells[i]
+        for (k, v) in state[model_key]
+            valid_vector = v isa AbstractVector && length(v) == nc
+            valid_matrix = v isa AbstractMatrix && size(v, 2) == nc
+
+            if valid_vector 
+                push!(all_state_fields, (k, 1))
+            elseif valid_matrix
+                push!(all_state_fields, (k, size(v, 1)))
+            end
+        end
+    end
+
+    total_number_of_cells = sum(ncells)
+    new_states = Vector{Dict{Symbol, Any}}()
+    for state in states
+        new_state = Dict{Symbol, Any}()
+        for (state_field, d) in all_state_fields
+            data = zeros(d, total_number_of_cells)
+            data .= NaN
+            for (i, model_key) in enumerate(model_keys)
+                state_m = state[model_key]
+                if haskey(state_m, state_field)
+                    old_data = state_m[state_field]
+                    data[:, offsets[i]:(offsets[i+1]-1)] = old_data
+                end
+            end
+        end
+        push!(new_states, new_state)
+    end
+    # TODO: Merge pts etc.
+    @info model_keys ncells states_mapped offsets all_state_fields
 end
