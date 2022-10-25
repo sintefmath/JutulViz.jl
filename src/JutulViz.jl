@@ -2,7 +2,7 @@ module JutulViz
     using Jutul
     using GLMakie
     using ColorSchemes
-    using GraphMakie, Graphs, LayeredLayouts
+    using GraphMakie, Graphs, LayeredLayouts, NetworkLayout
     using .GLMakie
     using ColorSchemes
     export plot_well!, plot_interactive, plot_reservoir, plot_well_results
