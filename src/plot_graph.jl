@@ -49,11 +49,18 @@ end
 function plot_model_graph(model::MultiModel)
     equation_to_label(k, eq_name) = "$k: $eq_name"
     edges = Vector{String}()
+    node_labels = Vector{String}()
     nodes = Vector{String}()
+    node_colors = Vector{Float64}()
 
     for (k, m) in pairs(model.models)
+        push!(nodes, "$k")
+        push!(node_labels, "$k")
+        push!(node_colors, 1.0)
         for (e, eq) in m.equations
             push!(nodes, equation_to_label(k, e))
+            push!(node_labels, "$e")
+            push!(node_colors, 0.0)
         end
     end
 
@@ -64,11 +71,23 @@ function plot_model_graph(model::MultiModel)
     else
         graph = SimpleGraph(n)
     end
-
     to_index(k, eq) = findfirst(isequal(equation_to_label(k, eq)), nodes)
+    to_index(k) = findfirst(isequal("$k"), nodes)
+
+    for (k, m) in pairs(model.models)
+        for (e, eq) in m.equations
+            T = to_index(k)
+            F = to_index(k, e)
+            if !has_edge(graph, T, F)
+                add_edge!(graph, T, F)
+                push!(edges, "")
+            end
+        end
+    end
+
     function add_cross_term_edge!(ct, target, source, equation)
         T = to_index(target, equation)
-        F = to_index(source, equation)
+        F = to_index(source)
         ct_bare_type = Base.typename(typeof(ct)).name
         if !has_edge(graph, T, F)
             add_edge!(graph, T, F)
@@ -86,12 +105,14 @@ function plot_model_graph(model::MultiModel)
     layout = SFDP(Ptype=Float32, tol=0.01, C=0.01, K=1)
     layout = Shell()
     # layout = SquareGrid()
-    return graphplot(graph, nlabels = nodes,
+    # layout = Spectral()
+    layout = Spring()
+    return graphplot(graph, nlabels = node_labels,
                             elabels = edges,
                             nlabels_distance=15,
                             nlabels_textsize=20,
                             node_size = [30 for i in 1:n],
-                            node_color = collect([Float64(i) for i in 1:n]),
+                            node_color = node_colors,
                             layout=layout
                             )
 end
