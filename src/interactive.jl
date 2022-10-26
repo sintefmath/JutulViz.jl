@@ -390,7 +390,7 @@ function basic_3d_figure()
 end
 
 export plot_multimodel_interactive
-function plot_multimodel_interactive(model, states, model_keys = keys(model.models), plot_type = :mesh; kwarg...)
+function plot_multimodel_interactive(model, states, model_keys = keys(model.models); plot_type = :mesh, shift = Dict(), kwarg...)
     n = length(model_keys)
     primitives = Vector{Any}(undef, n)
     ncells = zeros(Int64, n)
@@ -459,8 +459,13 @@ function plot_multimodel_interactive(model, states, model_keys = keys(model.mode
     tri = map(x -> x.triangulation, primitives)
     cell_index = map(x -> x.mapper.indices.Cells, primitives)
     offset = 0
-    for (pts, T) in zip(points, tri)
+    for (pts, T, k) in zip(points, tri, model_keys)
         @. T += offset
+        if haskey(shift, k)
+            for (i, dx) in enumerate(shift[k])
+                @. pts[:, i] += dx
+            end
+        end
         offset += size(pts, 1)
     end
     offset = 0
