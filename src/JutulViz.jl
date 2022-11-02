@@ -12,4 +12,6 @@ module JutulViz
     include("wells.jl")
     # Plotting of graphs (experimental)
     include("plot_graph.jl")
+    # Plots of iteration counts, timing etc
+    include("performance.jl")
 end # module
