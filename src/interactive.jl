@@ -97,6 +97,9 @@ function plot_interactive(grid, states; plot_type = nothing,
     if states isa AbstractDict
         states = [states]
     end
+    if eltype(states)<:Number && (length(states) == nc || size(states, 1) == nc)
+        states = [Dict(:Data => states)]
+    end
     data = states[1]
     labels = Vector{String}()
     limits = Dict()
