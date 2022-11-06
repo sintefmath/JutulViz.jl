@@ -54,6 +54,7 @@ function plot_interactive(grid, states; plot_type = nothing,
                                         transparency = false,
                                         resolution = default_jutul_resolution(),
                                         alpha = 1.0,
+                                        title = "",
                                         colormap = :viridis,
                                         alphamap = :no_alpha_map,
                                         kwarg...)
@@ -177,13 +178,13 @@ function plot_interactive(grid, states; plot_type = nothing,
         val = sl_x.selected_index.val
         state_index[] = val
     end
-    if size(pts, 2) == 3
-        ax = Axis3(fig[2, 1:3])
-    else
-        ax = Axis(fig[2, 1:3])
-    end
-
     is_3d = size(pts, 2) == 3
+    if is_3d
+        make_axis = Axis3
+    else
+        make_axis = Axis
+    end
+    ax = make_axis(fig[2, 1:3], title = title)
 
     # Selection of data
     ys = @lift(
