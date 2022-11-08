@@ -47,19 +47,24 @@ function plot_solve_breakdown(allreports, names; per_it = false, include_local_s
     return (fig, D)
 end
 
-function plot_cumulative_solve(allreports, dt, names = nothing; use_time = false)
+function plot_cumulative_solve(allreports, dt = nothing, names = nothing; use_time = false)
+    if isnothing(dt)
+        dt = report_timesteps(first(allreports))
+    end
     r_rep = map(x -> timing_breakdown(x, reduce = false), allreports)
     if use_time
         F = D -> map(x -> x.total, D)
         yl = "Wall time [s]"
+        tit = "Runtime"
     else
         F = D -> map(x -> x.its, D)
         yl = "Iterations"
+        tit = "Nonlinear iterations"
     end
     t = cumsum(vcat(0, dt))/(3600*24*365)
 
     fig = Figure()
-    ax = Axis(fig[1, 1], xlabel = "Time [years]", ylabel = yl)
+    ax = Axis(fig[1, 1], xlabel = "Time [years]", title = tit, ylabel = yl)
     get_data = x -> cumsum(vcat(0, F(x)))
 
     if isnothing(names)
