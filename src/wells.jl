@@ -167,7 +167,7 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
 
     newtime = []
     for i = 1:ndata
-        T = time[i]
+        T = copy(time[i])
         nt = length(T)
         ns = nsample[i]
         @assert nt == ns "Series $i: Recieved $nt steps, but wells had $ns results."
