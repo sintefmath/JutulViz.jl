@@ -73,7 +73,8 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     is_inj = is_injectors(first(well_data))
     @assert ndata <= length(styles) "Can't plot more datasets than styles provided"
     fig = Figure(resolution = resolution)
-    if isnothing(time)
+    no_time = isnothing(time)
+    if no_time
         t_l = "Time-step"
         @assert isnothing(start_date) "start_date does not make sense in the absence of time-steps"
     elseif isnothing(start_date)
@@ -159,31 +160,31 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     sample = map(x -> get_data([], 1, 1, x, false, false), 1:ndata)
     nsample = map(length, sample)
     if isnothing(time)
-        time = map(s -> 1:length(s), sample)
+        time = map(s -> collect(1:length(s)), sample)
     else
-        if eltype(time)<:AbstractFloat || eltype(time)<:Date
+        if eltype(time)<:AbstractFloat# || eltype(time)<:Date
             time = repeat([time], ndata)
         end
     end
-
-    newtime = []
-    for i = 1:ndata
-        T = copy(time[i])
-        nt = length(T)
-        ns = nsample[i]
-        @assert nt == ns "Series $i: Recieved $nt steps, but wells had $ns results."
-        if eltype(T)<:AbstractFloat
-            # Scale to days
-            if isnothing(start_date)
-                @. T /= (3600*24)
-            else
-                T = @. Microsecond(ceil(T*1e6)) + start_date
+    if !no_time
+        newtime = []
+        for i = 1:ndata
+            T = copy(time[i])
+            nt = length(T)
+            ns = nsample[i]
+            @assert nt == ns "Series $i: Recieved $nt steps, but wells had $ns results."
+            if eltype(T)<:AbstractFloat
+                # Scale to days
+                if isnothing(start_date)
+                    @. T /= (3600*24)
+                else
+                    T = @. Microsecond(ceil(T*1e6)) + start_date
+                end
+                push!(newtime, T)
             end
-            push!(newtime, T)
         end
+        time = newtime
     end
-    time = newtime
-
     lighten(x) = GLMakie.ARGB(x.r, x.g, x.b, 0.2)
     toggles = Vector{Any}([Toggle(fig, active = true, buttoncolor = cmap[i], framecolor_active = lighten(cmap[i])) for i in eachindex(wells)])
 
