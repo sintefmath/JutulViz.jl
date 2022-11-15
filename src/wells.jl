@@ -63,6 +63,7 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
                                                               linewidth = 3,
                                                               cmap = nothing, 
                                                               dashwidth = 1,
+                                                              new_window = false,
                                                               styles = [:solid, :scatter, :dash, :dashdot, :dot, :dashdotdot],
                                                               resolution = default_jutul_resolution(),
                                                               kwarg...)
@@ -277,7 +278,9 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
                         halign = :left, valign = :top, orientation = :horizontal
         )
     end
-    display(GLMakie.Screen(), fig)
+    if new_window
+        display(GLMakie.Screen(), fig)
+    end
     return fig
 end
 
