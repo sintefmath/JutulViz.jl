@@ -1,4 +1,4 @@
-export plot_solve_breakdown, plot_cumulative_solve
+export plot_solve_breakdown, plot_cumulative_solve, plot_cumulative_solve!
 function plot_solve_breakdown(allreports, names; per_it = false, include_local_solves = nothing)
     if per_it
         plot_title = "Time per iteration"
@@ -47,7 +47,14 @@ function plot_solve_breakdown(allreports, names; per_it = false, include_local_s
     return (fig, D)
 end
 
-function plot_cumulative_solve(allreports, dt = nothing, names = nothing; use_time = false)
+function plot_cumulative_solve(allreports, arg...; kwarg...)
+    fig = Figure()
+    alldata, t = plot_cumulative_solve!(fig[1, 1], allreports, arg...; kwarg...)
+    display(GLMakie.Screen(), fig)
+    return (fig, alldata, t)
+end
+
+function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; use_time = false)
     if isnothing(dt)
         dt = report_timesteps(first(allreports))
     end
@@ -63,8 +70,7 @@ function plot_cumulative_solve(allreports, dt = nothing, names = nothing; use_ti
     end
     t = cumsum(vcat(0, dt))/(3600*24*365)
 
-    fig = Figure()
-    ax = Axis(fig[1, 1], xlabel = "Time [years]", title = tit, ylabel = yl)
+    ax = Axis(f, xlabel = "Time [years]", title = tit, ylabel = yl)
     get_data = x -> cumsum(vcat(0, F(x)))
 
     if isnothing(names)
@@ -78,6 +84,5 @@ function plot_cumulative_solve(allreports, dt = nothing, names = nothing; use_ti
         scatter!(ax, t, data_i)
     end
     axislegend(ax, position = :lt)
-    display(fig)
-    return (fig, alldata, t)
+    return (alldata, t)
 end
