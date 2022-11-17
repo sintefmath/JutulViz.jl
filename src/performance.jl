@@ -1,11 +1,12 @@
 export plot_solve_breakdown, plot_cumulative_solve, plot_cumulative_solve!
-function plot_solve_breakdown(allreports, names; per_it = false, include_local_solves = nothing)
+function plot_solve_breakdown(allreports, names; per_it = false, include_local_solves = nothing, t_scale = ("s", 1.0))
+    t_unit, t_num = t_scale
     if per_it
         plot_title = "Time per iteration"
-        to_plot = x -> [x.assembly/x.its, x.subdomains/x.its, x.solve/x.its, x.total/x.its]
+        to_plot = x -> [x.assembly/x.its, x.subdomains/x.its, x.solve/x.its, x.total/x.its]./t_num
     else
         plot_title = "Total time"
-        to_plot = x -> [x.assembly, x.subdomains, x.solve, x.total]
+        to_plot = x -> [x.assembly, x.subdomains, x.solve, x.total]./t_num
     end
     labels = ["Assembly", "Local solves", "Linear solve", "Total"]
 
@@ -35,7 +36,7 @@ function plot_solve_breakdown(allreports, names; per_it = false, include_local_s
     grp = repeat(1:nel, ndata)
 
     fig = Figure()
-    ax = Axis(fig[1,1], xticks = (1:ndata, names), ylabel = "Time [s]", title = plot_title)
+    ax = Axis(fig[1,1], xticks = (1:ndata, names), ylabel = "Time [$t_unit]", title = plot_title)
     barplot!(ax, x, h,
             dodge = grp,
             color = colors[grp])
@@ -54,14 +55,15 @@ function plot_cumulative_solve(allreports, arg...; kwarg...)
     return (fig, alldata, t)
 end
 
-function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; use_time = false)
+function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; use_time = false, t_scale = ("s", 1.0))
     if isnothing(dt)
         dt = report_timesteps(first(allreports))
     end
     r_rep = map(x -> timing_breakdown(x, reduce = false), allreports)
     if use_time
-        F = D -> map(x -> x.total, D)
-        yl = "Wall time [s]"
+        t_unit, t_num = t_scale
+        F = D -> map(x -> x.total/t_num, D)
+        yl = "Wall time [$t_unit]"
         tit = "Runtime"
     else
         F = D -> map(x -> x.its, D)
