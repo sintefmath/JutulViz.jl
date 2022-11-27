@@ -1,6 +1,6 @@
 export plot_secondary_variables
-function plot_secondary_variables(model::SimulationModel)
-    plot_secondary_variables(MultiModel((model = model, )))
+function plot_secondary_variables(model::SimulationModel; kwarg...)
+    plot_secondary_variables(MultiModel((model = model, )); kwarg...)
 end
 
 function plot_secondary_variables(model::MultiModel; resolution = default_jutul_resolution(), linewidth = 4, kwarg...)
