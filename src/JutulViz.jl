@@ -14,4 +14,5 @@ module JutulViz
     include("plot_graph.jl")
     # Plots of iteration counts, timing etc
     include("performance.jl")
+    include("variables.jl")
 end # module
