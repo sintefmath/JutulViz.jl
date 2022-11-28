@@ -3,8 +3,9 @@ function plot_secondary_variables(model::SimulationModel; kwarg...)
     plot_secondary_variables(MultiModel((model = model, )); kwarg...)
 end
 
-function plot_secondary_variables(model::MultiModel; resolution = default_jutul_resolution(), linewidth = 4, kwarg...)
+function plot_secondary_variables(model::MultiModel; linewidth = 4, kwarg...)
     data = Dict{String, Any}()
+    nregmax = 1
     for (k, m) in pairs(model.models)
         for (vname, var) in Jutul.get_secondary_variables(m)
             d = line_plot_data(m, var)
@@ -13,37 +14,72 @@ function plot_secondary_variables(model::MultiModel; resolution = default_jutul_
                     d = [d]
                 end
                 data["$k.$vname"] = d
+                if d isa Matrix
+                    nregmax = max(nregmax, size(d, 2))
+                end
             end
         end
     end
-    fig = Figure(resolution = resolution)
+    fig = Figure()
+    grid = GridLayout(fig[1, 1])
+    ts = 22.0
+    # Property selection
     dkeys = keys(data)
     default = first(dkeys)
-    m = Menu(fig[1, 1], options = dkeys, default = default)
-    ax = Axis(fig[2, 1])
-    colors = Makie.wong_colors()
-    # slider = Slider(fig[1:2, 2], range = 0.5:0.1:10, startvalue = 1, horizontal = false)
-    function plot_var!(datakey)
-        di = first(data[datakey])
-        empty!(ax)
-        ax.xlabel = di.xlabel
-        ax.ylabel = di.ylabel
-        ax.title = di.title
-            # ax = Axis(plot_grid[1, i], xlabel = di.xlabel, ylabel = di.ylabel, title = di.title)
-        labels_found = false
-        ix = 1
-        for (x, y, lbl) in zip(di.xdata, di.ydata, di.datalabels)
-            c = colors[mod(ix, 7) + 1]
-            lines!(ax, x, y; color = c, linewidth = linewidth, label = lbl, kwarg...)
-            # text!(ax, x[end], y[end], text = lbl)
-            ix += 1
+    Label(grid[1, 1], "Select property", textsize = ts)
+    m = Menu(grid[2, 1], options = dkeys, default = default, width = 500, textsize = ts)
+    # Region selection
+    Label(grid[3, 1], "Select region", textsize = ts)
+    m2 = Menu(grid[4, 1], options = ["All", "Each", ["$i" for i in 1:nregmax]...], default = "All", width = 300, textsize = ts)
+    # Line width
+    s = Slider(grid[6, 1], range = range(0.1, 10, step = 0.1), startvalue = linewidth)
+    labeltext = lift(s.value) do int
+        "Linewidth = $int"
+    end
+    Label(grid[5, 1], labeltext, textsize = ts)
+    # Actually do stuff
+    # Label(grid[8, 1], "Generate plot")
+    b = Button(grid[9, 1], label = "Plot variable", buttoncolor = RGBf(0.5, 0.94, 0.5), textsize = 30.0, buttoncolor_hover = RGBf(0.1, 0.94, 0.1), buttoncolor_active = RGBf(0.1, 0.94, 0.1))
+
+    on(b.clicks) do ix
+        d = data[m.selection[]]
+        reg = m2.selection[]
+
+        plot_by_reg = regions -> plot_jutul_line_data!(d, regions = regions, linewidth = s.value[])
+        if reg == "All"
+            plot_by_reg(axes(d, 2))
+        elseif reg == "Each"
+            for reg in axes(d, 2)
+                plot_by_reg(reg)
+            end
+        else
+            regions = min(parse(Int64, reg), size(d, 2))
+            plot_by_reg(regions)
         end
-        # axislegend()
     end
-    on(m.selection) do datakey
-        plot_var!(datakey)
-    end
-    plot_var!(default)
     display(fig)
     return fig
+end
+
+function plot_jutul_line_data!(data::JutulLinePlotData; kwarg...)
+    plot_jutul_line_data!([data]; kwarg...)
+end
+
+function plot_jutul_line_data!(data; resolution = default_jutul_resolution(), linewidth = 4, regions = axes(data, 2), kwarg...)
+    fig = Figure(resolution = resolution)
+    colors = Makie.wong_colors()
+    for (col, regix) in enumerate(regions)
+        for i in axes(data, 1)
+            d = data[i, regix]
+            ax = Axis(fig[i, col], xlabel = d.xlabel, ylabel = d.ylabel, title = "$(d.title) region $regix")
+            ix = 1
+            for (x, y, lbl) in zip(d.xdata, d.ydata, d.datalabels)
+                c = colors[mod(ix, 7) + 1]
+                l = lines!(ax, x, y; color = c, linewidth = linewidth, label = lbl, kwarg...)
+                ix += 1
+            end
+            axislegend()
+        end
+    end
+    display(GLMakie.Screen(), fig)
 end
