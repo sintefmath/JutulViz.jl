@@ -6,6 +6,7 @@ end
 function plot_secondary_variables(model::MultiModel; linewidth = 4, kwarg...)
     data = Dict{String, Any}()
     nregmax = 1
+    count = 0
     for (k, m) in pairs(model.models)
         for (vname, var) in Jutul.get_secondary_variables(m)
             d = line_plot_data(m, var)
@@ -17,8 +18,13 @@ function plot_secondary_variables(model::MultiModel; linewidth = 4, kwarg...)
                 if d isa Matrix
                     nregmax = max(nregmax, size(d, 2))
                 end
+                count += 1
             end
         end
+    end
+    if count == 0
+        @info "No plottable variables found in model."
+        return
     end
     fig = Figure()
     grid = GridLayout(fig[1, 1])
@@ -75,7 +81,7 @@ function plot_jutul_line_data!(data; resolution = default_jutul_resolution(), li
             ix = 1
             for (x, y, lbl) in zip(d.xdata, d.ydata, d.datalabels)
                 c = colors[mod(ix, 7) + 1]
-                l = lines!(ax, x, y; color = c, linewidth = linewidth, label = lbl, kwarg...)
+                lines!(ax, x, y; color = c, linewidth = linewidth, label = lbl, kwarg...)
                 ix += 1
             end
             axislegend()
