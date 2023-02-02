@@ -1,4 +1,4 @@
-function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = nothing, linewidth = 5, top_factor = 0.2, textsize = 18, geometry = tpfv_geometry(g), kwarg...)
+function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = nothing, linewidth = 5, top_factor = 0.2, fontsize = 18, geometry = tpfv_geometry(g), kwarg...)
     if isnothing(textcolor)
         textcolor = color
     end
@@ -33,7 +33,7 @@ function plot_well!(ax, g, w; color = :darkred, textcolor = nothing, name = noth
             space = :data,
             color = textcolor,
             align = (:center, :baseline),
-            textsize = textsize)
+            fontsize = fontsize)
     lines!(ax, vec(pts[1, :]), vec(pts[2, :]), -vec(pts[3, :]), linewidth = linewidth, color = color, kwarg...)
 end
 

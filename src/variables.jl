@@ -32,20 +32,20 @@ function plot_secondary_variables(model::MultiModel; linewidth = 4, kwarg...)
     # Property selection
     dkeys = keys(data)
     default = first(dkeys)
-    Label(grid[1, 1], "Select property", textsize = ts)
-    m = Menu(grid[2, 1], options = dkeys, default = default, width = 500, textsize = ts)
+    Label(grid[1, 1], "Select property", fontsize = ts)
+    m = Menu(grid[2, 1], options = dkeys, default = default, width = 500, fontsize = ts)
     # Region selection
-    Label(grid[3, 1], "Select region", textsize = ts)
-    m2 = Menu(grid[4, 1], options = ["All", "Each", ["$i" for i in 1:nregmax]...], default = "All", width = 300, textsize = ts)
+    Label(grid[3, 1], "Select region", fontsize = ts)
+    m2 = Menu(grid[4, 1], options = ["All", "Each", ["$i" for i in 1:nregmax]...], default = "All", width = 300, fontsize = ts)
     # Line width
     s = Slider(grid[6, 1], range = range(0.1, 10, step = 0.1), startvalue = linewidth)
     labeltext = lift(s.value) do int
         "Linewidth = $int"
     end
-    Label(grid[5, 1], labeltext, textsize = ts)
+    Label(grid[5, 1], labeltext, fontsize = ts)
     # Actually do stuff
     # Label(grid[8, 1], "Generate plot")
-    b = Button(grid[9, 1], label = "Plot variable", buttoncolor = RGBf(0.5, 0.94, 0.5), textsize = 30.0, buttoncolor_hover = RGBf(0.1, 0.94, 0.1), buttoncolor_active = RGBf(0.1, 0.94, 0.1))
+    b = Button(grid[9, 1], label = "Plot variable", buttoncolor = RGBf(0.5, 0.94, 0.5), fontsize = 30.0, buttoncolor_hover = RGBf(0.1, 0.94, 0.1), buttoncolor_active = RGBf(0.1, 0.94, 0.1))
 
     on(b.clicks) do ix
         d = data[m.selection[]]
