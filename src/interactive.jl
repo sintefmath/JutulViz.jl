@@ -59,6 +59,7 @@ function plot_interactive(grid, states; plot_type = nothing,
                                         alphamap = :no_alpha_map,
                                         kwarg...)
     has_primitives = !isnothing(primitives)
+    active_filters = []
     if grid isa Integer
         # Assume that someone figured out primitives already...
         nc = grid
@@ -69,6 +70,7 @@ function plot_interactive(grid, states; plot_type = nothing,
     else
         nc = number_of_cells(grid)
     end
+    current_filter = collect(false for i in 1:nc)
     if !has_primitives
         if isnothing(plot_type)
             plot_candidates = [:mesh, :meshscatter, :lines]
@@ -189,7 +191,7 @@ function plot_interactive(grid, states; plot_type = nothing,
     # Selection of data
     ys = @lift(
                 mapper.Cells(
-                    select_data(states[$state_index], Symbol($prop_name), $row_index, $low, $hi, limits[$prop_name])
+                    select_data(current_filter, states[$state_index], Symbol($prop_name), $row_index, $low, $hi, limits[$prop_name], states, active_filters)
                 )
             )
     # Selection of colormap
@@ -245,28 +247,36 @@ function plot_interactive(grid, states; plot_type = nothing,
     top_layout[1, N_top] = top_buttons = GridLayout(tellwidth = true)
     N_top += 1
     # Clear all filters
-
+    function reset_selection_slider!()
+        low[] = 0.0
+        hi[] = 1.0
+        set_close_to!(rs_v, 0.0, 1.0)
+    end
     b_clear = Button(fig, label = "Clear all")
+    on(b_clear.clicks) do _
+        empty!(active_filters)
+        notify(state_index)
+    end
     b_clear_last = Button(fig, label = "Remove last")
+    on(b_clear_last.clicks) do _
+        if length(active_filters) > 0
+            pop!(active_filters)
+            notify(state_index)
+        end
+    end
     b_add_static = Button(fig, label = "Add static")
+    on(b_add_static.clicks) do _
+        if any(current_filter)
+            push!(active_filters, copy(current_filter))
+        end
+        reset_selection_slider!()
+    end
     b_add_dynamic = Button(fig, label = "Add dynamic")
-
+    on(b_add_dynamic.clicks) do _
+        push!(active_filters, (prop_name, low[], hi[], limits[prop_name]))
+        reset_selection_slider!()
+    end
     top_buttons[1, 1:5] = [Label(fig, "Filters"), b_clear, b_clear_last, b_add_static, b_add_dynamic]
-
-    # # Remove last filter
-    # top_buttons[2] = Button(fig, label = "Text")
-
-    # # Add dynamic filter
-    # top_buttons[3] = Button(fig, label = "Text")
-
-    # # Add static filter
-    # top_buttons[4] = Button(fig, label = "Text")
-
-    # top_layout[1, N_top] = Button()
-    # N_top += 1
-
-    # top_layout[1, N_top] = Button()
-    # N_top += 1
 
     # Colormap selector at the end
     top_layout[1, N_top] = Label(fig, "Colormap")
@@ -384,15 +394,43 @@ function plot_interactive(grid, states; plot_type = nothing,
     return fig, ax
 end
 
-function select_data(state, fld, ix, low, high, limits)
+function select_data(current_filter, state, fld, ix, low, high, limits, states, active_filters)
     d = unpack(state[fld], ix)
-    if low > 0.0 || high < 1.0
+    current_active = low > 0.0 || high < 1.0
+    extra_active = length(active_filters) > 1
+    if current_active || extra_active
+        d = copy(d)
+    end
+    if current_active
         d = copy(d)
         L, U = limits
         for i in eachindex(d)
             val = (d[i] - L)/(U - L)
-            if val < low || val > high
+            cell_hidden = val < low || val > high
+            current_filter[i] = cell_hidden
+            if cell_hidden
                 d[i] = NaN
+            end
+        end
+    end
+    for filt in active_filters
+        if filt isa Vector
+            for (i, cell_hidden) in enumerate(filt)
+                if cell_hidden
+                    d[i] = NaN
+                end
+            end
+        else
+            # (prop_name, low[], hi[], limits[prop_name])
+            nm, low_dyn, high_dyn, limits_dyn = filt
+            L, U = limits_dyn
+            filter_d = state[nm]
+            for i in eachindex(filter_d)
+                val = (filter_d[i] - L)/(U - L)
+                cell_hidden = val < low_dyn || val > high_dyn
+                if cell_hidden
+                    d[i] = NaN
+                end
             end
         end
     end
