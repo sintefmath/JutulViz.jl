@@ -55,6 +55,7 @@ function plot_interactive(grid, states; plot_type = nothing,
                                         resolution = default_jutul_resolution(),
                                         alpha = 1.0,
                                         title = "",
+                                        transform = "none",
                                         colormap = :viridis,
                                         alphamap = :no_alpha_map,
                                         kwarg...)
@@ -141,6 +142,7 @@ function plot_interactive(grid, states; plot_type = nothing,
     state_index = Observable{Int64}(1)
     row_index = Observable{Int64}(1)
     prop_name = Observable{Any}(initial_prop)
+    transform_name = Observable{String}(transform)
     lims = Observable(limits[initial_prop])
     menu = Menu(fig, options = datakeys, prompt = initial_prop)
     menu_2 = Menu(fig, options = get_valid_rows("$initial_prop"), prompt = "1", width = 60)
@@ -191,7 +193,17 @@ function plot_interactive(grid, states; plot_type = nothing,
     # Selection of data
     ys = @lift(
                 mapper.Cells(
-                    select_data(current_filter, states[$state_index], Symbol($prop_name), $row_index, $low, $hi, limits[$prop_name], states, active_filters)
+                    select_data(
+                        current_filter,
+                        states[$state_index],
+                        Symbol($prop_name),
+                        $row_index,
+                        $low,
+                        $hi,
+                        limits[$prop_name],
+                        $transform_name,
+                        active_filters
+                        )
                 )
             )
     # Selection of colormap
@@ -215,7 +227,7 @@ function plot_interactive(grid, states; plot_type = nothing,
         notify(menu_2.selection)
         menu_2.options = rows
         menu_2.selection[] = "$nextn"
-        lims[] = limits[s]
+        lims[] = transform_plot_limits(limits[s], transform_name[])
     end
     # Row of dataset selector
     on(menu_2.selection) do s
@@ -276,10 +288,30 @@ function plot_interactive(grid, states; plot_type = nothing,
     b_add_dynamic = Button(fig, label = "Add dynamic")
     on(b_add_dynamic.clicks) do _
         filter_prop_name = prop_name[]
-        push!(active_filters, (Symbol(filter_prop_name), row_index[], low[], hi[], limits[filter_prop_name]))
+        push!(active_filters, (
+                Symbol(filter_prop_name),
+                row_index[],
+                low[],
+                hi[],
+                limits[filter_prop_name],
+                transform_name[]
+                )
+            )
         reset_selection_slider!()
     end
     top_buttons[1, 1:5] = [genlabel("Filters"), b_clear, b_clear_last, b_add_static, b_add_dynamic]
+
+    # Transform
+    top_layout[1, N_top] = genlabel("Transform")
+    N_top += 1
+    menu_transform = Menu(top_layout[1, N_top], options = ["none", "abs", "log10", "symlog10", "exp", "10^", "log", "≥0", "≤0"], prompt = "none")
+    on(menu_transform.selection) do s
+        transform_name[] = s
+        old_lims = limits[prop_name[]]
+        new_lims = transform_plot_limits(old_lims, transform_name[])
+        lims[] = new_lims
+    end
+    N_top += 1
 
     # Colormap selector at the end
     top_layout[1, N_top] = genlabel("Colormap")
@@ -397,14 +429,9 @@ function plot_interactive(grid, states; plot_type = nothing,
     return fig, ax
 end
 
-function select_data(current_filter, state, fld, ix, low, high, limits, states, active_filters)
+function select_data(current_filter, state, fld, ix, low, high, limits, transform_name, active_filters)
     d = unpack(state[fld], ix)
     current_active = low > 0.0 || high < 1.0
-    extra_active = length(active_filters) > 1
-    if current_active || extra_active
-        d = copy(d)
-    end
-
     @. current_filter = false
     function update_filter!(M::AbstractMatrix, ix, arg...)
         update_filter!(view(M, ix, :), ix, arg...)
@@ -426,7 +453,7 @@ function select_data(current_filter, state, fld, ix, low, high, limits, states, 
         if filt isa Vector{Bool}
             @. current_filter |= filt
         else
-            nm, ix, low_dyn, high_dyn, limits_dyn = filt
+            nm, ix, low_dyn, high_dyn, limits_dyn, _ = filt
             L, U = limits_dyn
             filter_d = state[nm]
             update_filter!(filter_d, ix, L, U, low_dyn, high_dyn)
@@ -440,12 +467,17 @@ function select_data(current_filter, state, fld, ix, low, high, limits, states, 
             end
         end
     end
+    if transform_name != "none"
+        for i in eachindex(d)
+            d[i] = plot_transform(d[i], transform_name)
+        end
+    end
     apply_filter!(d)
     return d
 end
 
 unpack(x, ix) = x[ix, :]
-unpack(x::AbstractVector, ix) = x
+unpack(x::AbstractVector, ix) = copy(x)
 
 function generate_colormap(colormap_name, alphamap_name, base_alpha, low, high)
     cmap = to_colormap(colormap_name)
@@ -571,4 +603,71 @@ function plot_multimodel_interactive(model, states, model_keys = keys(model.mode
               )
     acc_primitives = (points = points, triangulation = tri, mapper = mapper)
     plot_interactive(total_number_of_cells, new_states, primitives = acc_primitives; kwarg...)
+end
+
+function symlog10(x)
+    # Inspired by matplotlib.scale.SymmetricalLogScale
+    # https://matplotlib.org/stable/api/scale_api.html#matplotlib.scale.SymmetricalLogScale
+    if x < 1 && x > -1
+        return x
+    else
+        return sign(x)*(log10(abs(x))+1)
+    end
+end
+
+function plot_transform(x, name)
+    if name != "none"
+        if name == "abs"
+            x = abs(x)
+        elseif name == "log10"
+            x = x > 0 ? log10(x) : NaN
+        elseif name == "log"
+            x = x > 0 ? log(x) : NaN
+        elseif name == "symlog10"
+            x = symlog10(x)
+        elseif name == "exp"
+            x = exp(x)
+        elseif name == "10^"
+            x = 10^x
+        elseif name == "≥0"
+            x = x >= 0 ? x : NaN
+        elseif name == "≤"
+            x = x <= 0 ? x : NaN
+        else
+            error("Unknown transform $name")
+        end
+    end
+    if !isfinite(x)
+        x = NaN
+    end
+    return x
+end
+
+
+function transform_plot_limits(lims, name)
+    low, hi = lims
+    if name != "none"
+        if name == "abs"
+            low = 0.0
+            hi = abs(hi)
+        elseif name == "log10" || name == log
+            if low < 0.0
+                low = -1e6
+            else
+                low = plot_transform(low, name)
+            end
+            hi = plot_transform(hi, name)
+        elseif name == "≥0"
+            hi = 0.0
+        elseif name == "≤0"
+            low = 0.0
+        else
+            low = plot_transform(low, name)
+            hi = plot_transform(hi, name)
+        end
+    end
+    if hi == low
+        hi = low + 1e-12
+    end
+    return (low, hi)
 end
