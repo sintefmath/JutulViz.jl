@@ -274,7 +274,7 @@ function plot_interactive(grid, states; plot_type = nothing,
     b_add_dynamic = Button(fig, label = "Add dynamic")
     on(b_add_dynamic.clicks) do _
         filter_prop_name = prop_name[]
-        push!(active_filters, (Symbol(filter_prop_name), low[], hi[], limits[filter_prop_name]))
+        push!(active_filters, (Symbol(filter_prop_name), row_index[], low[], hi[], limits[filter_prop_name]))
         reset_selection_slider!()
     end
     top_buttons[1, 1:5] = [Label(fig, "Filters"), b_clear, b_clear_last, b_add_static, b_add_dynamic]
@@ -404,13 +404,11 @@ function select_data(current_filter, state, fld, ix, low, high, limits, states, 
     end
 
     @. current_filter = false
-    function update_filter!(M::AbstractMatrix, arg...)
-        for d in axes(M, 1)
-            update_filter!(view(M, d, :), arg...)
-        end
+    function update_filter!(M::AbstractMatrix, ix, arg...)
+        update_filter!(view(M, ix, :), ix, arg...)
     end
 
-    function update_filter!(M::AbstractVector, L, U, low, high)
+    function update_filter!(M::AbstractVector, ix, L, U, low, high)
         for i in eachindex(M)
             val = (M[i] - L)/(U - L)
             cell_hidden = val < low || val > high
@@ -420,22 +418,16 @@ function select_data(current_filter, state, fld, ix, low, high, limits, states, 
 
     if current_active
         L, U = limits
-        update_filter!(d, L, U, low, high)
+        update_filter!(d, 1, L, U, low, high)
     end
     for filt in active_filters
         if filt isa Vector{Bool}
             @. current_filter |= filt
         else
-            nm, low_dyn, high_dyn, limits_dyn = filt
+            nm, ix, low_dyn, high_dyn, limits_dyn = filt
             L, U = limits_dyn
             filter_d = state[nm]
-            update_filter!(filter_d, L, U, low_dyn, high_dyn)
-        end
-    end
-
-    function apply_filter!(M::AbstractMatrix)
-        for d in axes(M, 1)
-            update_filter!(view(M, d, :))
+            update_filter!(filter_d, ix, L, U, low_dyn, high_dyn)
         end
     end
 
