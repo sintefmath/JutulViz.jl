@@ -227,6 +227,9 @@ function plot_interactive(grid, states; plot_type = nothing,
     N_top = 0
 
     # Alpha map selector
+    top_layout[1, N_top] = Label(fig, "Alphamap")
+    N_top += 1
+
     alphamaps = ["no_alpha_map", "linear", "linear_scaled", "inv_linear", "inv_linear_scaled"]
     amap_str = "$alphamap"
     if !(amap_str in alphamaps)
@@ -239,7 +242,36 @@ function plot_interactive(grid, states; plot_type = nothing,
     end
     N_top += 1
 
+    top_layout[1, N_top] = top_buttons = GridLayout(tellwidth = true)
+    N_top += 1
+    # Clear all filters
+
+    b_clear = Button(fig, label = "Clear all")
+    b_clear_last = Button(fig, label = "Remove last")
+    b_add_static = Button(fig, label = "Add static")
+    b_add_dynamic = Button(fig, label = "Add dynamic")
+
+    top_buttons[1, 1:5] = [Label(fig, "Filters"), b_clear, b_clear_last, b_add_static, b_add_dynamic]
+
+    # # Remove last filter
+    # top_buttons[2] = Button(fig, label = "Text")
+
+    # # Add dynamic filter
+    # top_buttons[3] = Button(fig, label = "Text")
+
+    # # Add static filter
+    # top_buttons[4] = Button(fig, label = "Text")
+
+    # top_layout[1, N_top] = Button()
+    # N_top += 1
+
+    # top_layout[1, N_top] = Button()
+    # N_top += 1
+
     # Colormap selector at the end
+    top_layout[1, N_top] = Label(fig, "Colormap")
+    N_top += 1
+
     colormaps = ["viridis", "jet", "balance", "autumn1", "hot", "winter", "terrain", "turbo", "gnuplot", "ocean", "vik"]
     cmap_str = "$colormap"
     if !(cmap_str in colormaps)
