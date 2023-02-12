@@ -273,7 +273,8 @@ function plot_interactive(grid, states; plot_type = nothing,
     end
     b_add_dynamic = Button(fig, label = "Add dynamic")
     on(b_add_dynamic.clicks) do _
-        push!(active_filters, (prop_name, low[], hi[], limits[prop_name]))
+        filter_prop_name = prop_name[]
+        push!(active_filters, (Symbol(filter_prop_name), low[], hi[], limits[filter_prop_name]))
         reset_selection_slider!()
     end
     top_buttons[1, 1:5] = [Label(fig, "Filters"), b_clear, b_clear_last, b_add_static, b_add_dynamic]
@@ -401,39 +402,51 @@ function select_data(current_filter, state, fld, ix, low, high, limits, states, 
     if current_active || extra_active
         d = copy(d)
     end
-    if current_active
-        d = copy(d)
-        L, U = limits
-        for i in eachindex(d)
-            val = (d[i] - L)/(U - L)
-            cell_hidden = val < low || val > high
-            current_filter[i] = cell_hidden
-            if cell_hidden
-                d[i] = NaN
-            end
+
+    @. current_filter = false
+    function update_filter!(M::AbstractMatrix, arg...)
+        for d in axes(M, 1)
+            update_filter!(view(M, d, :), arg...)
         end
     end
+
+    function update_filter!(M::AbstractVector, L, U, low, high)
+        for i in eachindex(M)
+            val = (M[i] - L)/(U - L)
+            cell_hidden = val < low || val > high
+            current_filter[i] |= cell_hidden
+        end
+    end
+
+    if current_active
+        L, U = limits
+        update_filter!(d, L, U, low, high)
+    end
     for filt in active_filters
-        if filt isa Vector
-            for (i, cell_hidden) in enumerate(filt)
-                if cell_hidden
-                    d[i] = NaN
-                end
-            end
+        if filt isa Vector{Bool}
+            @. current_filter |= filt
         else
-            # (prop_name, low[], hi[], limits[prop_name])
             nm, low_dyn, high_dyn, limits_dyn = filt
             L, U = limits_dyn
             filter_d = state[nm]
-            for i in eachindex(filter_d)
-                val = (filter_d[i] - L)/(U - L)
-                cell_hidden = val < low_dyn || val > high_dyn
-                if cell_hidden
-                    d[i] = NaN
-                end
+            update_filter!(filter_d, L, U, low_dyn, high_dyn)
+        end
+    end
+
+    function apply_filter!(M::AbstractMatrix)
+        for d in axes(M, 1)
+            update_filter!(view(M, d, :))
+        end
+    end
+
+    function apply_filter!(M::AbstractVector)
+        for i in eachindex(M)
+            if current_filter[i]
+                M[i] = NaN
             end
         end
     end
+    apply_filter!(d)
     return d
 end
 
