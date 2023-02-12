@@ -222,28 +222,34 @@ function plot_interactive(grid, states; plot_type = nothing,
         end
         row_index[] = parse(Int64, s)
     end
+    # Top row
+    fig[1, :] = top_layout = GridLayout(tellwidth = false)
+    N_top = 0
 
-    # Colormap selector
-    colormaps = ["viridis", "jet", "balance", "autumn1", "hot", "winter", "terrain", "turbo", "gnuplot", "ocean", "vik"]
-    cmap_str = "$colormap"
-    if !(cmap_str in colormaps)
-        push!(colormaps, cmap_str)
-    end
-    menu_cmap = Menu(fig[1, 3], options = colormaps, prompt = cmap_str)
-    on(menu_cmap.selection) do s
-        colormap_name[] = Symbol(s)
-    end
     # Alpha map selector
     alphamaps = ["no_alpha_map", "linear", "linear_scaled", "inv_linear", "inv_linear_scaled"]
     amap_str = "$alphamap"
     if !(amap_str in alphamaps)
         push!(alphamaps, cmap_str)
     end
-    fig[1, 1] = lmap = GridLayout()
+    top_layout[1, N_top] = lmap = GridLayout()
     menu_amap = Menu(lmap[1, 1], options = alphamaps, prompt = amap_str)
     on(menu_amap.selection) do s
         alphamap_name[] = Symbol(s)
     end
+    N_top += 1
+
+    # Colormap selector at the end
+    colormaps = ["viridis", "jet", "balance", "autumn1", "hot", "winter", "terrain", "turbo", "gnuplot", "ocean", "vik"]
+    cmap_str = "$colormap"
+    if !(cmap_str in colormaps)
+        push!(colormaps, cmap_str)
+    end
+    menu_cmap = Menu(top_layout[1, N_top], options = colormaps, prompt = cmap_str)
+    on(menu_cmap.selection) do s
+        colormap_name[] = Symbol(s)
+    end
+    N_top += 1
 
     function loopy()
         start = state_index.val
