@@ -229,7 +229,8 @@ function plot_interactive(grid, states; plot_type = nothing,
     N_top = 0
 
     # Alpha map selector
-    top_layout[1, N_top] = Label(fig, "Alphamap")
+    genlabel(l) = Label(fig, l, font = :bold)
+    top_layout[1, N_top] = genlabel("Alphamap")
     N_top += 1
 
     alphamaps = ["no_alpha_map", "linear", "linear_scaled", "inv_linear", "inv_linear_scaled"]
@@ -252,6 +253,7 @@ function plot_interactive(grid, states; plot_type = nothing,
         hi[] = 1.0
         set_close_to!(rs_v, 0.0, 1.0)
     end
+
     b_clear = Button(fig, label = "Clear all")
     on(b_clear.clicks) do _
         empty!(active_filters)
@@ -277,10 +279,10 @@ function plot_interactive(grid, states; plot_type = nothing,
         push!(active_filters, (Symbol(filter_prop_name), row_index[], low[], hi[], limits[filter_prop_name]))
         reset_selection_slider!()
     end
-    top_buttons[1, 1:5] = [Label(fig, "Filters"), b_clear, b_clear_last, b_add_static, b_add_dynamic]
+    top_buttons[1, 1:5] = [genlabel("Filters"), b_clear, b_clear_last, b_add_static, b_add_dynamic]
 
     # Colormap selector at the end
-    top_layout[1, N_top] = Label(fig, "Colormap")
+    top_layout[1, N_top] = genlabel("Colormap")
     N_top += 1
 
     colormaps = ["viridis", "jet", "balance", "autumn1", "hot", "winter", "terrain", "turbo", "gnuplot", "ocean", "vik"]
