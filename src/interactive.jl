@@ -317,7 +317,30 @@ function plot_interactive(grid, states; plot_type = nothing,
     top_layout[1, N_top] = genlabel("Colormap")
     N_top += 1
 
-    colormaps = ["viridis", "jet", "balance", "autumn1", "hot", "winter", "terrain", "turbo", "gnuplot", "ocean", "vik"]
+    colormaps = [
+        "viridis",
+        "turbo",
+        "oslo",
+        "jet",
+        "balance",
+        "autumn1",
+        "hot",
+        "winter",
+        "terrain",
+        "gnuplot",
+        "ocean",
+        "vik",
+        "twilight",
+        "terrain",
+        "berlin",
+        "hawaii",
+        "seaborn_icefire_gradient",
+        "seaborn_rocket_gradient",
+        "imola",
+        "gray1",
+        "rainbow1",
+        "tab20"
+        ]
     cmap_str = "$colormap"
     if !(cmap_str in colormaps)
         push!(colormaps, cmap_str)

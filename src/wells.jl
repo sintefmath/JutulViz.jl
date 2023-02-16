@@ -70,7 +70,15 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     # Figure part
     names = Vector{String}(names)
     ndata = length(well_data)
-    is_inj = is_injectors(first(well_data))
+    wd = first(well_data)
+    # Selected well
+    wells = sort!(collect(keys(wd)))
+    nw = length(wells)
+    if nw == 0
+        return nothing
+    end
+
+    is_inj = is_injectors(wd)
     @assert ndata <= length(styles) "Can't plot more datasets than styles provided"
     fig = Figure(resolution = resolution)
     no_time = isnothing(time)
@@ -84,10 +92,6 @@ function plot_well_results(well_data::Vector, time = nothing; start_date = nothi
     end
     ax = Axis(fig[1, 1], xlabel = t_l)
 
-    wd = first(well_data)
-    # Selected well
-    wells = sort!(collect(keys(wd)))
-    nw = length(wells)
     if isnothing(cmap)
         if nw > 20
             c_key = :turbo

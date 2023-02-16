@@ -88,3 +88,28 @@ function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; us
     axislegend(ax, position = :lt)
     return (alldata, t)
 end
+
+
+function plot_linear_convergence(report; kwarg...)
+    fig = Figure()
+    ax = Axis(fig[1, 1], yscale = log10; ylabel = "Residual", xlabel = "Linear iterations", kwarg...)
+    plot_linear_convergence!(ax, report)
+    display(GLMakie.Screen(), fig)
+end
+
+function plot_linear_convergence!(ax, report::AbstractDict)
+    if haskey(report, :ministeps)
+        plot_linear_convergence!(ax, report[:ministeps])
+    elseif haskey(report, :steps)
+        plot_linear_convergence!(ax, report[:steps])
+    elseif haskey(report, :linear_solver)
+        r = report[:linear_solver].residuals
+        lines!(ax, 1:length(r), r, alpha = 0.5)
+    end
+end
+
+function plot_linear_convergence!(ax, reports::Vector)
+    for r in reports
+        plot_linear_convergence!(ax, r)
+    end
+end
