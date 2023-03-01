@@ -55,7 +55,7 @@ function plot_cumulative_solve(allreports, arg...; kwarg...)
     return (fig, alldata, t)
 end
 
-function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; use_time = false, t_scale = ("s", 1.0))
+function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; use_time = false, t_scale = ("s", 1.0), title = "")
     if isnothing(dt)
         dt = report_timesteps(first(allreports))
     end
@@ -69,6 +69,9 @@ function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; us
         F = D -> map(x -> x.its, D)
         yl = "Iterations"
         tit = "Nonlinear iterations"
+    end
+    if !isnothing(title)
+        tit = "$title: $tit"
     end
     t = cumsum(vcat(0, dt))/(3600*24*365)
 
