@@ -39,9 +39,9 @@ function plot_interactive(model::SimulationModel, states; kwarg...)
     if states isa AbstractDict
         states = [states]
     end
-    mesh = model.plot_mesh
+    mesh = physical_representation(model.data_domain)
     if isnothing(mesh)
-        @warn "No plotting possible. SimulationModel has .plot_mesh = nothing." 
+        @warn "No plotting possible. SimulationModel has .data_domain = nothing." 
     else
         return plot_interactive(mesh, states; kwarg...)
     end
@@ -499,7 +499,7 @@ function select_data(current_filter, state, fld, ix, low, high, limits, transfor
     return d
 end
 
-unpack(x, ix) = x[ix, :]
+unpack(x, ix) = x[min(ix, size(x, 1)), :]
 unpack(x::AbstractVector, ix) = copy(x)
 
 function generate_colormap(colormap_name, alphamap_name, base_alpha, low, high)
@@ -539,7 +539,7 @@ function plot_multimodel_interactive(model, states, model_keys = keys(model.mode
     active = BitArray(undef, n)
     active .= false
     for (i, k) in enumerate(model_keys)
-        p = model[k].plot_mesh
+        p = physical_representation(model[k].data_domain)
         if isnothing(p)
             keep = false
         else
