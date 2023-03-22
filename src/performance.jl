@@ -55,7 +55,14 @@ function plot_cumulative_solve(allreports, arg...; kwarg...)
     return (fig, alldata, t)
 end
 
-function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; use_time = false, t_scale = ("s", 1.0), title = "")
+function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; 
+    use_time = false,
+    use_title = true,
+    linewidth = 3.5,
+    t_scale = ("s", 1.0),
+    title = nothing,
+    scatter_points = true
+    )
     if isnothing(dt)
         dt = report_timesteps(first(allreports))
     end
@@ -73,6 +80,9 @@ function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; us
     if !isnothing(title)
         tit = "$title: $tit"
     end
+    if !use_title
+        tit = ""
+    end
     t = cumsum(vcat(0, dt))/(3600*24*365)
 
     ax = Axis(f, xlabel = "Time [years]", title = tit, ylabel = yl)
@@ -85,8 +95,10 @@ function plot_cumulative_solve!(f, allreports, dt = nothing, names = nothing; us
     for i in eachindex(allreports)
         data_i = get_data(r_rep[i])
         push!(alldata, data_i)
-        lines!(ax, t, data_i, label = names[i], linewidth = 3.5)
-        scatter!(ax, t, data_i)
+        lines!(ax, t, data_i, label = names[i], linewidth = linewidth)
+        if scatter_points
+            scatter!(ax, t, data_i)
+        end
     end
     axislegend(ax, position = :lt)
     return (alldata, t)
